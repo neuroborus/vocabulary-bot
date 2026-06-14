@@ -1,0 +1,66 @@
+package telegram
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestClientSendHTMLMessageSetsParseMode(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/botfake-token/sendMessage" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.Form.Get("parse_mode") != parseModeHTML {
+			t.Fatalf("parse_mode = %q, want %q", r.Form.Get("parse_mode"), parseModeHTML)
+		}
+		if !strings.Contains(r.Form.Get("text"), "<b>Health</b>") {
+			t.Fatalf("text = %q", r.Form.Get("text"))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"result":{}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	if err := client.SendHTMLMessage(context.Background(), 42, "<b>Health</b>"); err != nil {
+		t.Fatalf("SendHTMLMessage() error = %v", err)
+	}
+}
+
+func TestClientSendMessageWithoutParseMode(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.Form.Get("parse_mode") != "" {
+			t.Fatalf("parse_mode = %q, want empty", r.Form.Get("parse_mode"))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"result":{}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	if err := client.SendMessage(context.Background(), 42, "plain text"); err != nil {
+		t.Fatalf("SendMessage() error = %v", err)
+	}
+}

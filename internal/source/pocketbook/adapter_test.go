@@ -236,6 +236,60 @@ func TestParseNoteSkipsPlainLongHighlightComment(t *testing.T) {
 	}
 }
 
+func TestParseNoteExtractsUsageExampleIntoContext(t *testing.T) {
+	t.Parallel()
+
+	book := Book{ID: "book-1", Title: "Road Book"}
+	note := Note{
+		UUID: "note-lean",
+		Note: &TextWithTime{Text: strings.Join([]string{
+			"[li:n] Noun 1) постное мясо",
+			"Verb 1) наклонять",
+			"to lean on a friend's advice - полагаться на совет друга",
+		}, "\n")},
+		Quotation: &Quotation{Text: "lean"},
+	}
+
+	draft, ok := ParseNote(book, note)
+	if !ok {
+		t.Fatalf("ParseNote() skipped note")
+	}
+	if draft.RawWord != "lean" {
+		t.Fatalf("RawWord = %q, want lean", draft.RawWord)
+	}
+	if len(draft.Contexts) != 1 {
+		t.Fatalf("contexts = %#v, want one usage example", draft.Contexts)
+	}
+	if !strings.Contains(draft.Contexts[0], "to lean on a friend's advice") {
+		t.Fatalf("context = %q", draft.Contexts[0])
+	}
+}
+
+func TestParseNoteUsesQuotationSentenceAsContext(t *testing.T) {
+	t.Parallel()
+
+	book := Book{ID: "book-1", Title: "Road Book"}
+	note := Note{
+		UUID: "note-1",
+		Note: &TextWithTime{Text: strings.Join([]string{
+			"Word: decelerate",
+			"Translations: замедляться, снижать скорость",
+		}, "\n")},
+		Quotation: &Quotation{Text: "The car began to decelerate rapidly."},
+	}
+
+	draft, ok := ParseNote(book, note)
+	if !ok {
+		t.Fatalf("ParseNote() skipped note")
+	}
+	if len(draft.Contexts) != 1 {
+		t.Fatalf("contexts = %#v", draft.Contexts)
+	}
+	if draft.Contexts[0] != "The car began to decelerate rapidly." {
+		t.Fatalf("context = %q", draft.Contexts[0])
+	}
+}
+
 func TestFileSessionStoreRoundTripUsesOwnerOnlyPermissions(t *testing.T) {
 	t.Parallel()
 

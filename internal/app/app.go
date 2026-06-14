@@ -119,13 +119,14 @@ func buildSources(cfg config.Config, logger *slog.Logger, sessionStore pocketboo
 
 	if cfg.PocketBook.Enabled {
 		adapters = append(adapters, pocketbook.NewAdapter(pocketbook.AdapterOptions{
-			BaseURL:      cfg.PocketBook.BaseURL,
-			Email:        cfg.PocketBook.Email,
-			Password:     cfg.PocketBook.Password,
-			RefreshToken: cfg.PocketBook.RefreshToken,
-			ShopName:     cfg.PocketBook.ShopName,
-			SessionStore: sessionStore,
-			Logger:       logger,
+			BaseURL:            cfg.PocketBook.BaseURL,
+			Email:              cfg.PocketBook.Email,
+			Password:           cfg.PocketBook.Password,
+			RefreshToken:       cfg.PocketBook.RefreshToken,
+			ShopName:           cfg.PocketBook.ShopName,
+			SessionStore:       sessionStore,
+			Logger:             logger,
+			BookContextEnabled: cfg.PocketBook.BookContextEnabled,
 		}))
 	}
 
@@ -161,7 +162,7 @@ func runTelegram(
 		Repository:           repository,
 		Logger:               logger,
 		AllowedUserID:        cfg.Telegram.AllowedUserID,
-		TargetChatID:         cfg.Telegram.TargetChatID,
+		ReviewChatID:         cfg.Telegram.TargetChatID,
 		LogPath:              cfg.LogPath,
 		SyncEnabled:          cfg.SyncEnabled,
 		NotificationsEnabled: cfg.NotificationsEnabled,
@@ -172,14 +173,11 @@ func runTelegram(
 		logger.Error("telegram command menu setup failed", slog.String("error", logging.SanitizeError(err)))
 	}
 
-	notifyChatID := cfg.Telegram.AllowedUserID
-	if cfg.Telegram.TargetChatID != 0 {
-		notifyChatID = cfg.Telegram.TargetChatID
-	}
-	if err := client.SendMessage(ctx, notifyChatID, "Started!"); err != nil {
+	serviceNotifier := telegram.NewServiceNotifier(client, cfg.Telegram.AllowedUserID)
+	if err := serviceNotifier.Notify(ctx, telegram.StartupMessage()); err != nil {
 		logger.Error(
 			"telegram startup notification failed",
-			slog.Int64("chat_id", notifyChatID),
+			slog.Int64("chat_id", cfg.Telegram.AllowedUserID),
 			slog.String("error", logging.SanitizeError(err)),
 		)
 	}

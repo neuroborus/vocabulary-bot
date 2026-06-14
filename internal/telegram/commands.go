@@ -16,6 +16,9 @@ const (
 
 type Notifier interface {
 	SendMessage(ctx context.Context, chatID int64, text string) error
+	SendHTMLMessage(ctx context.Context, chatID int64, text string) error
+	SendHTMLMessageWithKeyboard(ctx context.Context, chatID int64, text string, keyboard InlineKeyboardMarkup) error
+	AnswerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error
 	SendDocument(ctx context.Context, chatID int64, path string, caption string) error
 }
 
@@ -33,39 +36,39 @@ func KnownCommands() []CommandDescription {
 	return []CommandDescription{
 		{
 			Command:     CommandStart,
-			Description: "Show bot help and available commands",
+			Description: "Welcome message and command reference",
 		},
 		{
 			Command:     CommandInfo,
-			Description: "Show service info and available commands",
+			Description: "Health snapshot plus command reference",
 		},
 		{
 			Command:     CommandHealth,
-			Description: "Show service health and current word count",
+			Description: "Health status, word count, and enabled flags",
 		},
 		{
 			Command:     CommandSync,
-			Description: "Synchronize PocketBook and Google Sheets now",
+			Description: "Sync PocketBook and Google Sheets into storage now",
 		},
 		{
 			Command:     CommandListWords,
-			Description: "Export all vocabulary items as JSON",
+			Description: "Send all vocabulary items as a JSON file",
 		},
 		{
 			Command:     CommandLogs,
-			Description: "Send the current application log file",
+			Description: "Send the current log file without clearing it",
 		},
 		{
 			Command:     CommandTurnOff,
-			Description: "Disable sync and notifications",
+			Description: "Disable automatic sync and notifications",
 		},
 		{
 			Command:     CommandTurnOn,
-			Description: "Enable sync and notifications",
+			Description: "Enable automatic sync and notifications",
 		},
 		{
 			Command:     CommandPush,
-			Description: "Send one review word when review push is implemented",
+			Description: "Manually send one review word with Easy/Hard/Remove buttons",
 		},
 	}
 }

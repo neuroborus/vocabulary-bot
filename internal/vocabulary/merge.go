@@ -123,6 +123,8 @@ func NewItemFromDraft(draft Draft, now time.Time) (Item, error) {
 		item.Anchors = []SourceAnchor{anchor}
 	}
 
+	NormalizeUsageExamples(&item)
+
 	return item, nil
 }
 
@@ -144,6 +146,7 @@ func MergeIntoItem(item *Item, draft Draft, now time.Time) {
 	}
 
 	item.UpdatedAt = now
+	NormalizeUsageExamples(item)
 }
 
 func newForm(rawWord string, now time.Time) Form {

@@ -11,20 +11,22 @@ import (
 )
 
 type Adapter struct {
-	client *Client
-	logger *slog.Logger
+	client             *Client
+	logger             *slog.Logger
+	bookContextEnabled bool
 }
 
 type AdapterOptions struct {
-	BaseURL      string
-	Email        string
-	Password     string
-	RefreshToken string
-	ShopName     string
-	HTTPClient   *http.Client
-	SessionStore SessionStore
-	Logger       *slog.Logger
-	Now          func() time.Time
+	BaseURL            string
+	Email              string
+	Password           string
+	RefreshToken       string
+	ShopName           string
+	HTTPClient         *http.Client
+	SessionStore       SessionStore
+	Logger             *slog.Logger
+	Now                func() time.Time
+	BookContextEnabled bool
 }
 
 func NewAdapter(options AdapterOptions) *Adapter {
@@ -46,8 +48,9 @@ func NewAdapter(options AdapterOptions) *Adapter {
 	})
 
 	return &Adapter{
-		client: client,
-		logger: logger,
+		client:             client,
+		logger:             logger,
+		bookContextEnabled: options.BookContextEnabled,
 	}
 }
 
@@ -67,7 +70,7 @@ func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
 
 	drafts := make([]vocabulary.Draft, 0)
 	for _, book := range books {
-		if book.FastHash == "" {
+		if err := validateBookForNotes(book); err != nil {
 			a.logger.Warn(
 				"pocketbook book skipped because fast_hash is empty",
 				slog.String("book_id", book.ID),
@@ -76,10 +79,10 @@ func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
 			continue
 		}
 
-		noteIDs, err := a.client.ListNoteIDs(ctx, book.FastHash)
+		bookDrafts, err := a.syncBook(ctx, book)
 		if err != nil {
 			a.logger.Error(
-				"pocketbook book notes failed",
+				"pocketbook book sync failed",
 				slog.String("book_id", book.ID),
 				slog.String("title", book.Title),
 				slog.String("error", err.Error()),
@@ -87,33 +90,25 @@ func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
 			continue
 		}
 
-		for _, noteID := range noteIDs {
-			if noteID.UUID == "" {
-				continue
-			}
-
-			note, ok, err := a.client.GetNote(ctx, noteID.UUID, book.FastHash)
-			if err != nil {
-				a.logger.Error(
-					"pocketbook note fetch failed",
-					slog.String("book_id", book.ID),
-					slog.String("note_uuid", noteID.UUID),
-					slog.String("error", err.Error()),
-				)
-				continue
-			}
-			if !ok {
-				continue
-			}
-
-			draft, ok := ParseNote(book, note)
-			if !ok {
-				continue
-			}
-
-			drafts = append(drafts, draft)
-		}
+		drafts = append(drafts, bookDrafts...)
 	}
 
 	return drafts, nil
+}
+
+func (a *Adapter) syncBook(ctx context.Context, book Book) ([]vocabulary.Draft, error) {
+	noteIDs, err := a.client.ListNoteIDs(ctx, book.FastHash)
+	if err != nil {
+		return nil, fmt.Errorf("list notes: %w", err)
+	}
+
+	notes := fetchBookNotes(ctx, a.client, book, noteIDs, a.logger)
+	if len(notes) == 0 {
+		return nil, nil
+	}
+
+	parsed := parsedDraftsFromNotes(book, notes)
+	a.enrichBookDrafts(ctx, book, parsed)
+
+	return draftsFromParsed(parsed), nil
 }

@@ -20,14 +20,20 @@ func ParseNote(book Book, note Note) (vocabulary.Draft, bool) {
 	}
 
 	parsed := parseNoteText(noteText)
-	word := firstNonEmpty(parsed.word, selectedText)
+	word := parsed.word
+	if word == "" && looksLikeDictionaryWord(selectedText) {
+		word = selectedText
+	}
 	translations := parsed.translations
 	contexts := parsed.contexts
 
-	if parsed.word == "" {
+	if word == "" {
 		if !looksLikeDictionaryWord(selectedText) || !looksLikeTranslationBlock(noteText) {
 			return vocabulary.Draft{}, false
 		}
+		word = selectedText
+	}
+	if len(translations) == 0 && looksLikeTranslationBlock(noteText) {
 		translations = splitTranslations(noteText)
 	}
 
@@ -38,8 +44,14 @@ func ParseNote(book Book, note Note) (vocabulary.Draft, bool) {
 		return vocabulary.Draft{}, false
 	}
 
-	if selectedText != "" && vocabulary.CompactKey(selectedText) != vocabulary.CompactKey(word) && looksLikeContext(selectedText) && !containsNormalized(contexts, selectedText) {
-		contexts = append(contexts, selectedText)
+	translations, exampleContexts := vocabulary.PartitionUsageExamples(translations)
+	for _, example := range exampleContexts {
+		contexts = appendUniqueContext(contexts, example)
+	}
+	contexts = appendQuotationContext(contexts, word, selectedText)
+
+	if len(translations) == 0 && len(contexts) == 0 {
+		return vocabulary.Draft{}, false
 	}
 
 	draft := vocabulary.Draft{
@@ -148,9 +160,38 @@ func normalizeLabel(value string) string {
 func splitTranslations(value string) []string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	value = strings.ReplaceAll(value, "\r", "\n")
-	value = strings.NewReplacer(";", "\n", ",", "\n", "•", "\n").Replace(value)
+	value = strings.NewReplacer(";", "\n", "•", "\n").Replace(value)
 
-	return splitAndClean(value, "\n")
+	lines := splitAndClean(value, "\n")
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if shouldSplitCommaTranslations(line) {
+			result = append(result, splitAndClean(line, ",")...)
+			continue
+		}
+		result = append(result, line)
+	}
+
+	return result
+}
+
+func shouldSplitCommaTranslations(line string) bool {
+	if strings.Count(line, ",") == 0 {
+		return false
+	}
+	if strings.Contains(line, ")") || strings.Contains(strings.ToLower(line), "noun") ||
+		strings.Contains(strings.ToLower(line), "verb") || strings.Contains(strings.ToLower(line), "adjective") {
+		return false
+	}
+
+	parts := strings.Split(line, ",")
+	for _, part := range parts {
+		if looksLikeContext(strings.TrimSpace(part)) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func splitContexts(value string) []string {
@@ -272,6 +313,27 @@ func containsNormalized(values []string, candidate string) bool {
 	}
 
 	return false
+}
+
+func appendUniqueContext(contexts []string, candidate string) []string {
+	candidate = cleanNoteText(candidate)
+	if candidate == "" || containsNormalized(contexts, candidate) {
+		return contexts
+	}
+
+	return append(contexts, candidate)
+}
+
+func appendQuotationContext(contexts []string, word, quotation string) []string {
+	quotation = cleanNoteText(quotation)
+	if quotation == "" || !looksLikeContext(quotation) {
+		return contexts
+	}
+	if vocabulary.CompactKey(quotation) == vocabulary.CompactKey(word) {
+		return contexts
+	}
+
+	return appendUniqueContext(contexts, quotation)
 }
 
 func pageFromAnchor(anchor string) string {

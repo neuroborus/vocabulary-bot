@@ -45,6 +45,12 @@ func (b *Bot) Poll(ctx context.Context) error {
 			if update.UpdateID >= offset {
 				offset = update.UpdateID + 1
 			}
+			if update.CallbackQuery != nil {
+				if err := b.handler.HandleCallbackQuery(ctx, *update.CallbackQuery); err != nil {
+					b.logger.Error("telegram callback failed", slog.String("error", err.Error()))
+				}
+				continue
+			}
 			if update.Message == nil {
 				continue
 			}

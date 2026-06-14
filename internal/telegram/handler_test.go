@@ -72,7 +72,7 @@ func TestCommandHandlerHealthReportsWordCount(t *testing.T) {
 	if len(notifier.messages) != 1 {
 		t.Fatalf("messages = %d, want 1", len(notifier.messages))
 	}
-	if !strings.Contains(notifier.messages[0].text, "Words: 1") {
+	if !strings.Contains(notifier.messages[0].text, "Words: <b>1</b>") {
 		t.Fatalf("health text = %q", notifier.messages[0].text)
 	}
 	if notifier.messages[0].chatID != 200 {
@@ -109,11 +109,11 @@ func TestCommandHandlerStartAndInfoUseCommandDescriptions(t *testing.T) {
 		t.Fatalf("messages = %d, want 2", len(notifier.messages))
 	}
 	for _, message := range notifier.messages {
-		if !strings.Contains(message.text, CommandInfo+" - ") {
-			t.Fatalf("message does not include info description: %q", message.text)
+		if !strings.Contains(message.text, "<code>"+CommandInfo+"</code>") {
+			t.Fatalf("message does not include info command: %q", message.text)
 		}
-		if !strings.Contains(message.text, CommandListWords+" - ") {
-			t.Fatalf("message does not include list_words description: %q", message.text)
+		if !strings.Contains(message.text, "<code>"+CommandListWords+"</code>") {
+			t.Fatalf("message does not include list_words command: %q", message.text)
 		}
 	}
 }
@@ -136,7 +136,6 @@ func TestCommandHandlerSyncUsesRunner(t *testing.T) {
 		Notifier:      notifier,
 		SyncRunner:    runner,
 		AllowedUserID: 42,
-		TargetChatID:  300,
 		SyncEnabled:   true,
 	})
 
@@ -154,10 +153,10 @@ func TestCommandHandlerSyncUsesRunner(t *testing.T) {
 	if len(notifier.messages) != 1 {
 		t.Fatalf("messages = %d, want 1", len(notifier.messages))
 	}
-	if notifier.messages[0].chatID != 300 {
-		t.Fatalf("chatID = %d, want target chat 300", notifier.messages[0].chatID)
+	if notifier.messages[0].chatID != 200 {
+		t.Fatalf("chatID = %d, want source chat 200", notifier.messages[0].chatID)
 	}
-	if !strings.Contains(notifier.messages[0].text, "Drafts processed: 3") {
+	if !strings.Contains(notifier.messages[0].text, "Drafts processed: <b>3</b>") {
 		t.Fatalf("sync text = %q", notifier.messages[0].text)
 	}
 }
@@ -221,6 +220,156 @@ func TestClientSetMyCommands(t *testing.T) {
 	}
 }
 
+func TestCommandHandlerPushSendsReviewWordToReviewChat(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repository := memory.NewVocabularyRepository()
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	service := vocabulary.NewService(repository, func() time.Time { return now })
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:       vocabulary.SourcePocketBook,
+		RawWord:      "to decelerate",
+		Translations: []string{"замедляться"},
+		Contexts:     []string{"The car began to decelerate."},
+	}); err != nil {
+		t.Fatalf("seed vocabulary: %v", err)
+	}
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:      notifier,
+		Repository:    repository,
+		AllowedUserID: 42,
+		ReviewChatID:  900,
+		Now:           func() time.Time { return now },
+	})
+
+	if err := handler.HandleMessage(ctx, Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: CommandPush,
+	}); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+
+	if len(notifier.messages) != 2 {
+		t.Fatalf("messages = %d, want 2", len(notifier.messages))
+	}
+	if notifier.messages[0].chatID != 900 {
+		t.Fatalf("review chatID = %d, want 900", notifier.messages[0].chatID)
+	}
+	if notifier.messages[0].keyboard == nil {
+		t.Fatal("push message has no keyboard")
+	}
+	if notifier.messages[1].chatID != 200 || !strings.Contains(notifier.messages[1].text, "Review word sent to channel") {
+		t.Fatalf("confirmation = %#v", notifier.messages[1])
+	}
+
+	items, err := repository.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if items[0].Review.LastPushedAt == nil {
+		t.Fatal("LastPushedAt was not updated")
+	}
+}
+
+func TestCommandHandlerPushSendsReviewWord(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repository := memory.NewVocabularyRepository()
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	service := vocabulary.NewService(repository, func() time.Time { return now })
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:       vocabulary.SourcePocketBook,
+		RawWord:      "to decelerate",
+		Translations: []string{"замедляться"},
+		Contexts:     []string{"The car began to decelerate."},
+	}); err != nil {
+		t.Fatalf("seed vocabulary: %v", err)
+	}
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:      notifier,
+		Repository:    repository,
+		AllowedUserID: 42,
+		Now:           func() time.Time { return now },
+	})
+
+	if err := handler.HandleMessage(ctx, Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: CommandPush,
+	}); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+
+	if len(notifier.messages) != 1 {
+		t.Fatalf("messages = %d, want 1", len(notifier.messages))
+	}
+	if notifier.messages[0].chatID != 200 {
+		t.Fatalf("chatID = %d, want 200", notifier.messages[0].chatID)
+	}
+	if notifier.messages[0].keyboard == nil {
+		t.Fatal("push message has no keyboard")
+	}
+	if !strings.Contains(notifier.messages[0].text, "to decelerate") {
+		t.Fatalf("push text = %q", notifier.messages[0].text)
+	}
+}
+
+func TestCommandHandlerReviewCallbackEasy(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repository := memory.NewVocabularyRepository()
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	service := vocabulary.NewService(repository, func() time.Time { return now })
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:  vocabulary.SourcePocketBook,
+		RawWord: "decelerate",
+	}); err != nil {
+		t.Fatalf("seed vocabulary: %v", err)
+	}
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:      notifier,
+		Repository:    repository,
+		AllowedUserID: 42,
+		Now:           func() time.Time { return now },
+	})
+
+	if err := handler.HandleCallbackQuery(ctx, CallbackQuery{
+		ID:   "cb-1",
+		From: User{ID: 42},
+		Data: reviewCallbackData(reviewActionEasy, "decelerate"),
+	}); err != nil {
+		t.Fatalf("callback: %v", err)
+	}
+
+	if len(notifier.callbackResponses) != 1 {
+		t.Fatalf("callback responses = %d, want 1", len(notifier.callbackResponses))
+	}
+	if !strings.Contains(notifier.callbackResponses[0].text, "Easy") {
+		t.Fatalf("callback answer = %q", notifier.callbackResponses[0].text)
+	}
+
+	items, err := repository.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if items[0].Review.IntervalDays != 2 {
+		t.Fatalf("IntervalDays = %d, want 2", items[0].Review.IntervalDays)
+	}
+	if items[0].Review.DueAt == nil {
+		t.Fatal("DueAt was not set")
+	}
+}
+
 func TestCommandHandlerTurnOffBlocksSync(t *testing.T) {
 	t.Parallel()
 
@@ -272,13 +421,20 @@ func (r *fakeSyncRunner) Run(ctx context.Context) (syncer.Summary, error) {
 }
 
 type fakeNotifier struct {
-	messages  []fakeMessage
-	documents []fakeDocument
+	messages          []fakeMessage
+	documents         []fakeDocument
+	callbackResponses []fakeCallbackResponse
 }
 
 type fakeMessage struct {
-	chatID int64
-	text   string
+	chatID   int64
+	text     string
+	keyboard *InlineKeyboardMarkup
+}
+
+type fakeCallbackResponse struct {
+	id   string
+	text string
 }
 
 type fakeDocument struct {
@@ -288,11 +444,36 @@ type fakeDocument struct {
 }
 
 func (n *fakeNotifier) SendMessage(ctx context.Context, chatID int64, text string) error {
+	return n.recordMessage(ctx, chatID, text, nil)
+}
+
+func (n *fakeNotifier) SendHTMLMessage(ctx context.Context, chatID int64, text string) error {
+	return n.recordMessage(ctx, chatID, text, nil)
+}
+
+func (n *fakeNotifier) SendHTMLMessageWithKeyboard(ctx context.Context, chatID int64, text string, keyboard InlineKeyboardMarkup) error {
+	keyboardCopy := keyboard
+	return n.recordMessage(ctx, chatID, text, &keyboardCopy)
+}
+
+func (n *fakeNotifier) AnswerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	n.messages = append(n.messages, fakeMessage{chatID: chatID, text: text})
+	n.callbackResponses = append(n.callbackResponses, fakeCallbackResponse{
+		id:   callbackQueryID,
+		text: text,
+	})
+	return nil
+}
+
+func (n *fakeNotifier) recordMessage(ctx context.Context, chatID int64, text string, keyboard *InlineKeyboardMarkup) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	n.messages = append(n.messages, fakeMessage{chatID: chatID, text: text, keyboard: keyboard})
 	return nil
 }
 

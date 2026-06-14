@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -290,6 +292,102 @@ func (c *Client) GetNote(ctx context.Context, uuid string, fastHash string) (Not
 	}
 
 	return Note{}, false, err
+}
+
+func (c *Client) DownloadFile(ctx context.Context, fileURL string, destination string) error {
+	fileURL = strings.TrimSpace(fileURL)
+	if fileURL == "" {
+		return fmt.Errorf("download url is empty")
+	}
+
+	if !strings.Contains(fileURL, "://") {
+		fileURL = strings.TrimRight(c.baseURL, "/") + "/" + strings.TrimLeft(fileURL, "/")
+	}
+
+	session, err := c.Authenticate(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := c.downloadToFile(ctx, fileURL, destination, session.AccessToken); err == nil {
+		return nil
+	} else if !isAuthHTTPError(err) {
+		return err
+	}
+
+	if err := c.downloadToFile(ctx, fileURL, destination, ""); err == nil {
+		return nil
+	} else if !isAuthHTTPError(err) {
+		return err
+	}
+
+	if _, renewErr := c.ForceRenew(ctx); renewErr != nil {
+		return fmt.Errorf("renew pocketbook session after download auth failure: %w", renewErr)
+	}
+
+	session, err = c.Authenticate(ctx)
+	if err != nil {
+		return err
+	}
+
+	return c.downloadToFile(ctx, fileURL, destination, session.AccessToken)
+}
+
+func isAuthHTTPError(err error) bool {
+	var httpErr *HTTPError
+	return errors.As(err, &httpErr) &&
+		(httpErr.StatusCode == http.StatusUnauthorized || httpErr.StatusCode == http.StatusForbidden)
+}
+
+func (c *Client) downloadToFile(ctx context.Context, fileURL, destination, accessToken string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	if err != nil {
+		return err
+	}
+	if accessToken != "" {
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+	}
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("User-Agent", "vocabulary-bot/0.1")
+
+	response, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return &HTTPError{StatusCode: response.StatusCode, Status: response.Status}
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
+		return fmt.Errorf("create download dir: %w", err)
+	}
+
+	tempDestination := destination + ".part"
+	file, err := os.OpenFile(tempDestination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("create download file: %w", err)
+	}
+
+	_, copyErr := io.Copy(file, response.Body)
+	closeErr := file.Close()
+	if copyErr != nil {
+		_ = os.Remove(tempDestination)
+		return fmt.Errorf("write download file: %w", copyErr)
+	}
+	if closeErr != nil {
+		_ = os.Remove(tempDestination)
+		return fmt.Errorf("close download file: %w", closeErr)
+	}
+
+	if err := os.Rename(tempDestination, destination); err != nil {
+		_ = os.Remove(tempDestination)
+		return fmt.Errorf("finalize download file: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Client) doAuthorizedJSON(ctx context.Context, method string, path string, query url.Values, body []byte, target any) error {

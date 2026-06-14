@@ -32,3 +32,9 @@ func MarkHard(item *vocabulary.Item, now time.Time) {
 	dueAt := now.UTC().AddDate(0, 0, item.Review.IntervalDays)
 	item.Review.DueAt = &dueAt
 }
+
+func MarkDisabled(item *vocabulary.Item, now time.Time) {
+	item.Enabled = false
+	item.Review.Enabled = false
+	item.UpdatedAt = now.UTC()
+}

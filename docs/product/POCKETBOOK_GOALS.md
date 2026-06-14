@@ -250,6 +250,117 @@ contexts      -> the saved context text, if present
 sourceMeta    -> book/note/page/position information, if present
 ```
 
+### 8.1 Dictionary-note context sources (validated on Era Color)
+
+Real PocketBook Cloud payloads from a PocketBook Era Color account show that dictionary translation notes and book-text highlights are stored differently. This distinction matters for what the current parser can import without downloading the book file.
+
+Validated example (`lean`, book `Necromancer`, dictionary note UUID `0314B80B-F5F6-5BC0-90E7-639DE5C1CA65`):
+
+```text
+mark.anchor     -> pbr:/word?page=11&offs=518
+quotation.text  -> lean
+note.text       -> full dictionary entry, including usage example lines such as
+                   "to lean on a friend's advice - полагаться на совет друга"
+draft.contexts  -> dictionary usage example after parser normalization
+```
+
+Interpretation:
+
+```text
+pbr:/word       -> dictionary lookup anchored to a word position in the book
+pbr:/page       -> text highlight / quote saved directly from book text
+quotation.text  -> for pbr:/word notes, usually only the headword
+note.text       -> dictionary translation block; may also contain dictionary examples
+```
+
+The Era Color dictionary panel setting **Save translation as note** controls how translation and dictionary-side context are written into `note.text`. It does not, by itself, make PocketBook Cloud send a full book sentence in `quotation.text` for `pbr:/word` notes.
+
+Current parser behavior for these notes:
+
+```text
+1. Parse translations and inline dictionary examples from note.text.
+2. Move english-russian usage-example lines from translations[] into contexts[].
+3. Add quotation.text to contexts[] only when it looks like a real sentence
+   (longer than the headword; not just the selected word again).
+```
+
+Therefore, for dictionary notes the bot can reliably import dictionary examples today. It cannot import the surrounding book sentence from `quotation.text` alone when Cloud only stores the headword.
+
+### 8.2 Book sentence backfill via book download (optional future path)
+
+PocketBook Cloud already exposes enough metadata to attempt a second enrichment step: download the synced book file and derive the sentence around a saved word using the note anchor.
+
+Observed API surface relevant to this path:
+
+```text
+GET /books?limit=500
+  -> book id, title, mime_type, fast_hash, path
+
+GET /notes?fast_hash={bookFastHash}
+GET /notes/{uuid}?fast_hash={bookFastHash}
+  -> mark.anchor, quotation.begin/end, quotation.text, note.text
+```
+
+Community PocketBook Cloud clients also demonstrate that book files can be downloaded from the user's cloud library after authentication. The exact download endpoint and response shape are unofficial and must be fixture-validated per account, but the capability is technically plausible because the book list already carries a `path` (or equivalent download locator).
+
+Likely enrichment pipeline:
+
+```text
+1. Run the normal note sync and parse dictionary drafts as today.
+2. For each pocketbook anchor with pbr:/word?page=X&offs=Y and no book-sentence context:
+   a. ensure the book file is available locally (download once, cache by bookId/fast_hash)
+   b. open the book in the same logical text stream PocketBook uses for offs
+   c. locate character offset offs (or the range begin/end if more reliable)
+   d. extract the surrounding sentence or paragraph
+   e. append the extracted sentence to contexts[] as an independent context string
+3. Merge into VocabularyItem using the same context dedupe rules as other sources.
+```
+
+Anchor fields to preserve for this work:
+
+```text
+bookId / fast_hash   -> choose and cache the correct book file
+page                 -> debugging and fallback heuristics only; not sufficient alone
+offs / begin / end   -> primary locator inside rendered book text
+position raw string  -> keep unchanged in anchors[] for replay/debug
+```
+
+Important constraints:
+
+```text
+- offs is not a public, documented PocketBook contract. Treat it as an observed
+  device/cloud coordinate that must be validated against real EPUB/PDF samples.
+- PocketBook rendering may not equal raw EPUB text order. Extraction may require
+  reproducing PocketBook's text normalization, HTML cleanup, or chapter assembly.
+- Book format matters: EPUB is the likely first target; PDF/reflowable formats may
+  need separate extractors or may be unsupported.
+- Downloading every book on each sync is expensive. Cache book files on disk with
+  invalidation by fast_hash or updated timestamp.
+- Cloud sync may lag until the book is closed or the device sync completes.
+- This enrichment must remain optional. Dictionary-note import must still work when
+  book download or sentence extraction fails for a title.
+```
+
+Preferred source order for book sentence context:
+
+```text
+1. quotation.text when it already contains a full sentence (typical for pbr:/page highlights)
+2. manually edited context saved on the device and present in note.text
+3. dictionary usage examples parsed from note.text
+4. optional future EPUB/offs sentence backfill for pbr:/word dictionary notes
+```
+
+This EPUB/offs backfill is implemented behind `POCKETBOOK_BOOK_CONTEXT_ENABLED`. During PocketBook sync the adapter processes each book sequentially: download to a temp file, enrich dictionary-word drafts that still need a book sentence, then delete the temp file before moving to the next book.
+
+Discovery tooling for this area:
+
+```text
+cmd/pocketbook-dump-note --word <word>
+cmd/pocketbook-dump-note --uuid <note-uuid>
+future: scripts/pocketbook-download-book --book <id>
+future: scripts/pocketbook-extract-sentence --book <id> --offs <n>
+```
+
 ## 9. Shared vocabulary entity
 
 PocketBook and Google Sheet must write into the same database entity.
@@ -450,31 +561,31 @@ The bot must support these commands:
 
 ```text
 /start
-  Show bot help and available commands.
+  Welcome message and command reference.
 
 /info
-  Show service info and available commands.
+  Health snapshot plus command reference.
 
 /health
-  Check bot health, database connection, scheduler state, and last PocketBook sync status.
+  Report health status, word count, and sync/notification flags.
 
 /list_words
   Send a JSON file with all vocabulary items currently stored in the database.
 
 /turn_off
-  Disable word notifications and source synchronization.
+  Disable automatic sync and notifications. Manual commands still work.
 
 /turn_on
-  Enable word notifications and source synchronization.
+  Enable automatic sync and notifications.
 
 /sync
   Manually synchronize all sources now, starting with PocketBook.
 
 /push
-  Manually send one due or random word now, without waiting for the timer.
+  Manually send one review word with Easy/Hard/Delete buttons.
 
 /logs
-  Send the current log file.
+  Send the current log file without clearing it.
 ```
 
 Only the configured allowed Telegram user ID may execute commands or press review buttons.
@@ -527,10 +638,13 @@ Implement a small isolated script:
 ```text
 scripts/pocketbook-auth-check
 scripts/pocketbook-list-books
+cmd/pocketbook-dump-note --word <word>
+cmd/pocketbook-dump-note --uuid <note-uuid>
 scripts/pocketbook-dump-notes --book <id>
+scripts/pocketbook-download-book --book <id>   # future, for sentence backfill discovery
 ```
 
-Goal: obtain real sanitized JSON fixtures from the user's account.
+Goal: obtain real sanitized JSON fixtures from the user's account and validate whether book download plus `offs` anchors can recover book sentences for `pbr:/word` dictionary notes.
 
 No parser logic should be finalized before looking at real PocketBook translation-note payloads.
 
@@ -589,6 +703,8 @@ Add weekly log delivery and rotation.
 - Login flow may change and break cron automation.
 - Social login is not a good target for automation.
 - Some notes may be stored differently depending on book format, firmware, dictionary, or save-note setting.
+- Dictionary notes (`pbr:/word`) often store only the headword in `quotation.text`; book sentences may require highlight notes (`pbr:/page`) or a future book-download/offs enrichment step.
+- `offs` anchors are observed coordinates, not a documented public contract; sentence extraction may break across firmware or book formats.
 - PocketBook sync may lag until the book is closed or manual sync is triggered.
 - Translation notes may not have clean word/translation/context fields; parsing may require heuristics.
 ```

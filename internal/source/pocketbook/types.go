@@ -36,6 +36,7 @@ type authTokens struct {
 type Book struct {
 	ID          string       `json:"id"`
 	Path        string       `json:"path"`
+	Link        string       `json:"link"`
 	Title       string       `json:"title"`
 	MimeType    string       `json:"mime_type"`
 	CreatedAt   string       `json:"created_at"`

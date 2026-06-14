@@ -591,6 +591,18 @@ Running `/sync` multiple times should not duplicate translations, contexts, form
 
 The spreadsheet source participates in existing bot commands.
 
+### `/start`
+
+Shows a welcome message and the full command reference.
+
+Does not run sync or change runtime settings.
+
+### `/info`
+
+Shows the current health snapshot plus the full command reference.
+
+Useful when you want status and help in one message.
+
 ### `/sync`
 
 Manually runs source synchronization.
@@ -647,6 +659,19 @@ source synchronization
 ### `/turn_on`
 
 Turns both back on.
+
+### `/push`
+
+Placeholder in the current MVP.
+
+Expected future behavior:
+
+```text
+1. Pick the next due word.
+2. If no words are due, optionally pick the oldest enabled word.
+3. Send a normal reminder message with buttons.
+4. Update lastPushedAt.
+```
 
 ### `/logs`
 

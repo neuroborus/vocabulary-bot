@@ -53,7 +53,7 @@ func (c *Client) GetUpdates(ctx context.Context, offset int, timeoutSeconds int)
 	if timeoutSeconds > 0 {
 		values.Set("timeout", strconv.Itoa(timeoutSeconds))
 	}
-	values.Set("allowed_updates", `["message"]`)
+	values.Set("allowed_updates", `["message","callback_query"]`)
 
 	endpoint := c.methodURL("getUpdates")
 	if encoded := values.Encode(); encoded != "" {
@@ -77,9 +77,31 @@ func (c *Client) GetUpdates(ctx context.Context, offset int, timeoutSeconds int)
 }
 
 func (c *Client) SendMessage(ctx context.Context, chatID int64, text string) error {
+	return c.sendMessage(ctx, chatID, text, "", nil)
+}
+
+func (c *Client) SendHTMLMessage(ctx context.Context, chatID int64, text string) error {
+	return c.sendMessage(ctx, chatID, text, parseModeHTML, nil)
+}
+
+func (c *Client) SendHTMLMessageWithKeyboard(ctx context.Context, chatID int64, text string, keyboard InlineKeyboardMarkup) error {
+	return c.sendMessage(ctx, chatID, text, parseModeHTML, &keyboard)
+}
+
+func (c *Client) sendMessage(ctx context.Context, chatID int64, text, parseMode string, keyboard *InlineKeyboardMarkup) error {
 	values := url.Values{}
 	values.Set("chat_id", strconv.FormatInt(chatID, 10))
 	values.Set("text", text)
+	if parseMode != "" {
+		values.Set("parse_mode", parseMode)
+	}
+	if keyboard != nil {
+		payload, err := json.Marshal(keyboard)
+		if err != nil {
+			return err
+		}
+		values.Set("reply_markup", string(payload))
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("sendMessage"), strings.NewReader(values.Encode()))
 	if err != nil {
@@ -93,6 +115,31 @@ func (c *Client) SendMessage(ctx context.Context, chatID int64, text string) err
 	}
 	if !response.OK {
 		return fmt.Errorf("telegram sendMessage failed: %s", response.Description)
+	}
+
+	return nil
+}
+
+func (c *Client) AnswerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error {
+	values := url.Values{}
+	values.Set("callback_query_id", callbackQueryID)
+	if text != "" {
+		values.Set("text", text)
+	}
+	values.Set("show_alert", "false")
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("answerCallbackQuery"), strings.NewReader(values.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	var response apiResponse[bool]
+	if err := c.doJSON(req, &response); err != nil {
+		return err
+	}
+	if !response.OK {
+		return fmt.Errorf("telegram answerCallbackQuery failed: %s", response.Description)
 	}
 
 	return nil
@@ -113,6 +160,9 @@ func (c *Client) SendDocument(ctx context.Context, chatID int64, path string, ca
 	}
 	if caption != "" {
 		if err := writer.WriteField("caption", caption); err != nil {
+			return err
+		}
+		if err := writer.WriteField("parse_mode", parseModeHTML); err != nil {
 			return err
 		}
 	}

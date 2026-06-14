@@ -600,13 +600,34 @@ ambiguous merge count, if any
 
 ### `/start`
 
-Shows bot help and available commands.
+Shows a welcome message and the full command reference.
+
+Current response includes:
+
+```text
+bot title and short purpose
+full command list with one-line descriptions
+```
+
+Does not run sync or change runtime settings.
 
 ---
 
 ### `/info`
 
-Shows service info and available commands.
+Shows the current health snapshot plus the full command reference.
+
+Current response includes:
+
+```text
+health status
+stored word count
+sync enabled/disabled
+notifications enabled/disabled
+full command list with one-line descriptions
+```
+
+Useful when you want status and help in one message.
 
 ---
 

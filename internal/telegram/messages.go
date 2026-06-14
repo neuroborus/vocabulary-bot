@@ -1,0 +1,129 @@
+package telegram
+
+import (
+	"fmt"
+	"strings"
+
+	syncer "github.com/neuroborus/vocabulary-bot/internal/sync"
+)
+
+const parseModeHTML = "HTML"
+
+func StartupMessage() string {
+	return "<b>Vocabulary Bot</b> is online."
+}
+
+func formatStartMessage() string {
+	var builder strings.Builder
+	builder.WriteString("<b>Vocabulary Bot</b>\n")
+	builder.WriteString("<i>Imports words from PocketBook and Google Sheets.</i>\n\n")
+	builder.WriteString(formatCommandsBlock())
+	return builder.String()
+}
+
+func formatInfoMessage(health string) string {
+	return health + "\n\n" + formatCommandsBlock()
+}
+
+func formatHealthMessage(status string, wordCount int, syncEnabled, notificationsEnabled bool) string {
+	return fmt.Sprintf(
+		"<b>Health</b>\n"+
+			"Status: %s\n"+
+			"Words: <b>%d</b>\n"+
+			"Sync: %s\n"+
+			"Notifications: %s",
+		healthStatusLabel(status),
+		wordCount,
+		boolLabel(syncEnabled),
+		boolLabel(notificationsEnabled),
+	)
+}
+
+func formatSyncSummary(summary syncer.Summary) string {
+	var builder strings.Builder
+	builder.WriteString("<b>Sync complete</b>\n\n")
+	builder.WriteString("<b>Totals</b>\n")
+	builder.WriteString(fmt.Sprintf("• Drafts processed: <b>%d</b>\n", summary.DraftsProcessed))
+	builder.WriteString(fmt.Sprintf("• Created: <b>%d</b>\n", summary.Created))
+	builder.WriteString(fmt.Sprintf("• Updated: <b>%d</b>\n", summary.Updated))
+	builder.WriteString(fmt.Sprintf("• Ambiguous: <b>%d</b>\n", summary.Ambiguous))
+	builder.WriteString(fmt.Sprintf("• Source errors: <b>%d</b>", summary.SourceErrors))
+
+	if len(summary.Sources) > 0 {
+		builder.WriteString("\n\n<b>Sources</b>")
+		for _, source := range summary.Sources {
+			builder.WriteString("\n• ")
+			builder.WriteString(escapeHTML(source.Name))
+			builder.WriteString(" — ")
+			builder.WriteString(fmt.Sprintf("%d draft", source.Drafts))
+			if source.Drafts != 1 {
+				builder.WriteString("s")
+			}
+			if source.Error != "" {
+				builder.WriteString("\n  ⚠️ ")
+				builder.WriteString(escapeHTML(source.Error))
+			}
+		}
+	}
+
+	return builder.String()
+}
+
+func formatCommandsBlock() string {
+	var builder strings.Builder
+	builder.WriteString("<b>Commands</b>")
+
+	for _, command := range KnownCommands() {
+		builder.WriteString("\n")
+		builder.WriteString("<code>")
+		builder.WriteString(escapeHTML(command.Command))
+		builder.WriteString("</code> — ")
+		builder.WriteString(escapeHTML(command.Description))
+	}
+
+	return builder.String()
+}
+
+func formatNotice(title, body string) string {
+	if body == "" {
+		return "ℹ️ <b>" + escapeHTML(title) + "</b>"
+	}
+
+	return "ℹ️ <b>" + escapeHTML(title) + "</b>\n\n" + body
+}
+
+func formatError(title, detail string) string {
+	if detail == "" {
+		return "⚠️ <b>" + escapeHTML(title) + "</b>"
+	}
+
+	return "⚠️ <b>" + escapeHTML(title) + "</b>\n\n<code>" + escapeHTML(detail) + "</code>"
+}
+
+func boolLabel(enabled bool) string {
+	if enabled {
+		return "✅ enabled"
+	}
+
+	return "⛔ disabled"
+}
+
+func healthStatusLabel(status string) string {
+	switch status {
+	case "ok":
+		return "✅ ok"
+	case "degraded":
+		return "⚠️ degraded"
+	default:
+		return escapeHTML(status)
+	}
+}
+
+func escapeHTML(value string) string {
+	replacer := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+	)
+	return replacer.Replace(value)
+}

@@ -32,13 +32,14 @@ type TelegramConfig struct {
 }
 
 type PocketBookConfig struct {
-	Enabled      bool
-	Email        string
-	Password     string
-	RefreshToken string
-	ShopName     string
-	BaseURL      string
-	TokenPath    string
+	Enabled            bool
+	Email              string
+	Password           string
+	RefreshToken       string
+	ShopName           string
+	BaseURL            string
+	TokenPath          string
+	BookContextEnabled bool
 }
 
 type GoogleSheetConfig struct {
@@ -77,13 +78,14 @@ func Load() (Config, error) {
 			PollingEnabled: getenvBool("TELEGRAM_POLLING_ENABLED", true),
 		},
 		PocketBook: PocketBookConfig{
-			Enabled:      getenvBool("POCKETBOOK_SYNC_ENABLED", true),
-			Email:        firstEnv([]string{"POCKETBOOK_EMAIL", "POCKETBOOK_LOGIN"}, ""),
-			Password:     getenv("POCKETBOOK_PASSWORD", ""),
-			RefreshToken: getenv("POCKETBOOK_REFRESH_TOKEN", ""),
-			ShopName:     getenv("POCKETBOOK_SHOP_NAME", ""),
-			BaseURL:      getenv("POCKETBOOK_API_BASE_URL", ""),
-			TokenPath:    getenv("POCKETBOOK_TOKEN_PATH", ""),
+			Enabled:            getenvBool("POCKETBOOK_SYNC_ENABLED", true),
+			Email:              firstEnv([]string{"POCKETBOOK_EMAIL", "POCKETBOOK_LOGIN"}, ""),
+			Password:           getenv("POCKETBOOK_PASSWORD", ""),
+			RefreshToken:       getenv("POCKETBOOK_REFRESH_TOKEN", ""),
+			ShopName:           getenv("POCKETBOOK_SHOP_NAME", ""),
+			BaseURL:            getenv("POCKETBOOK_API_BASE_URL", ""),
+			TokenPath:          getenv("POCKETBOOK_TOKEN_PATH", ""),
+			BookContextEnabled: getenvBool("POCKETBOOK_BOOK_CONTEXT_ENABLED", true),
 		},
 		GoogleSheet: GoogleSheetConfig{
 			Enabled:            getenvBool("GOOGLE_SHEET_SYNC_ENABLED", true),

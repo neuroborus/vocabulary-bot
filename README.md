@@ -66,6 +66,17 @@ POCKETBOOK_PASSWORD=
 POCKETBOOK_SHOP_NAME=
 POCKETBOOK_TOKEN_PATH=
 POCKETBOOK_REFRESH_TOKEN=
+POCKETBOOK_BOOK_CONTEXT_ENABLED=true
+```
+
+When `POCKETBOOK_BOOK_CONTEXT_ENABLED=true`, sync downloads each book file once per book (EPUB or FB2), extracts dictionary-word sentences by `offs`, appends them to `contexts`, and deletes the temp file before the next book.
+
+Discovery helpers:
+
+```bash
+go run ./cmd/pocketbook-list-books
+go run ./cmd/pocketbook-dump-note -word lean -limit 2
+go run ./cmd/pocketbook-dump-note -uuid <note-uuid>
 ```
 
 `POCKETBOOK_REFRESH_TOKEN` is only an override. Normal setup should let the app capture and persist the token automatically. Because the API is unofficial, real account payloads still need sanitized fixtures before tightening dictionary-note parsing.
@@ -77,18 +88,18 @@ When `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_ID`, and `TELEGRAM_POLLING_ENA
 Minimal commands:
 
 ```text
-/start
-/info
-/health
-/sync
-/list_words
-/logs
-/turn_off
-/turn_on
-/push
+/start      Welcome message and command reference
+/info       Health snapshot plus command reference
+/health     Health status, word count, and enabled flags
+/sync       Sync PocketBook and Google Sheets into storage now
+/list_words Send all vocabulary items as a JSON file
+/logs       Send the current log file without clearing it
+/turn_off   Disable automatic sync and notifications
+/turn_on    Enable automatic sync and notifications
+/push       Manually send one review word with Easy/Hard/Remove buttons
 ```
 
-`/push` is currently a placeholder until review selection and notification scheduling are implemented.
+Only the configured `TELEGRAM_ALLOWED_USER_ID` may execute commands. Service notifications, including the startup message, are always sent to that user ID. Command responses are sent back to the chat where the command was sent. Review push cards go to `TELEGRAM_TARGET_CHAT_ID` when it is configured. `/turn_off` blocks `/sync` until `/turn_on` is used again; other manual commands still work.
 
 ## Main Rules Already Encoded
 
