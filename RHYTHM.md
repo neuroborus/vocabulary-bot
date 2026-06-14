@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- Documented the recommended manual Google Sheets import template `word | translations | contexts | note | tags | enabled`, including how optional `note`, `tags`, and `enabled` cells are parsed and when to leave them empty.
 - Default PocketBook book cache dir renamed to `$TMPDIR/vocabulary-bot-cache/books` to avoid collision when `/tmp/vocabulary-bot` is a leftover Go binary; `/sync` now reports `book context skipped (already in DB)` and `book context enriched` under the pocketbook source line.
 - `IsUsageExampleLine` now requires Cyrillic on the right side of `english - translation` lines so book sentences with dashes (e.g. crackpot) are not misclassified; fixes repeated enrichment on every sync for those words.
 - PocketBook book-context enrichment uses an on-disk cache keyed by `fast_hash`, with `lastUsedAt` sidecar metadata and LRU eviction at `POCKETBOOK_BOOK_CACHE_MAX` (default `2`); stale versions for the same `bookId` are removed when `fast_hash` changes; words that already have a book sentence in Mongo are skipped during enrichment.

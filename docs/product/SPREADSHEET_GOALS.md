@@ -137,6 +137,14 @@ Minimal MVP columns:
 word | translations | contexts
 ```
 
+Recommended manual-import CSV columns:
+
+```text
+word | translations | contexts | note | tags | enabled
+```
+
+Only `word` is required by the parser. `translations` and `contexts` are optional technically, but a useful vocabulary row should normally provide both. `note`, `tags`, and `enabled` are optional convenience columns for manual Google Sheets maintenance and can be left empty.
+
 ## Cell parsing rules
 
 ### Word
@@ -212,6 +220,72 @@ Rules:
 Important limitation:
 
 Using a dot as a context separator means abbreviations and multi-sentence examples may be split incorrectly. This is acceptable for MVP because the user explicitly chose a simple dot-based rule. If this becomes painful later, the project can migrate to a stronger separator such as `|||`.
+
+### Note
+
+`note` is an optional free-form note cell.
+
+Use it for information that is useful but is not a translation or a usage context:
+
+```text
+Pronunciation: квэйнт
+Used mostly as an idiom
+Formal legal term
+```
+
+Notes are split by newline.
+
+Rules:
+
+1. Trim spaces around each note.
+2. Drop empty entries.
+3. Deduplicate notes by normalized text.
+4. Do not put source dates or import bookkeeping here unless they are useful to the user during review.
+
+### Tags
+
+`tags` is an optional comma-separated label list.
+
+Examples:
+
+```text
+idiom, legal, business
+```
+
+Parsed as:
+
+```json
+[
+  "idiom",
+  "legal",
+  "business"
+]
+```
+
+Rules:
+
+1. Trim spaces around each tag.
+2. Drop empty entries.
+3. Deduplicate tags case-insensitively inside the same word entity.
+4. Keep tags short and user-facing.
+
+### Enabled
+
+`enabled` is an optional row-level import switch.
+
+Empty `enabled` values are treated as enabled. The parser accepts these enabled values:
+
+```text
+true, yes, 1, on
+```
+
+The parser accepts these disabled values:
+
+```text
+false, no, 0, off
+```
+
+Disabled rows are skipped during spreadsheet sync. Invalid values produce a row-level parser error and the row is skipped.
 
 ## Common internal model
 
