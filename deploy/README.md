@@ -12,7 +12,7 @@ sudo apt-get install -y docker.io docker-compose-v2
 sudo usermod -aG docker "$USER"
 ```
 
-Log out and back in so the `docker` group applies.
+Log out and back in so the `docker` group applies. Deploy falls back to `sudo docker` when the SSH user is not in the `docker` group but passwordless sudo is available.
 
 Create the app directory when using `/opt`:
 
