@@ -12,3 +12,6 @@ logs/archive/*.log
 pocketbook-session*.json
 
 .DS_Store
+
+__pycache__/
+*.py[cod]
