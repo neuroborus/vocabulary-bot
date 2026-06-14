@@ -80,11 +80,61 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	syncEnabled, err := getenvBool("SYNC_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
+
+	notificationsEnabled, err := getenvBool("NOTIFICATIONS_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
+
+	pollingEnabled, err := getenvBool("TELEGRAM_POLLING_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
+
+	reviewSpoilerTranslations, err := getenvBool("TELEGRAM_REVIEW_SPOILER_TRANSLATIONS", true)
+	if err != nil {
+		return Config{}, err
+	}
+
+	documentPushFactor, err := getenvFloat("REVIEW_DOCUMENT_PUSH_FACTOR", 0.7)
+	if err != nil {
+		return Config{}, err
+	}
+
+	bookPushFactor, err := getenvFloat("REVIEW_BOOK_PUSH_FACTOR", 1)
+	if err != nil {
+		return Config{}, err
+	}
+
+	pocketbookSyncEnabled, err := getenvBool("POCKETBOOK_SYNC_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
+
+	bookContextEnabled, err := getenvBool("POCKETBOOK_BOOK_CONTEXT_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
+
+	bookCacheMax, err := getenvInt("POCKETBOOK_BOOK_CACHE_MAX", 2)
+	if err != nil {
+		return Config{}, err
+	}
+
+	googleSheetSyncEnabled, err := getenvBool("GOOGLE_SHEET_SYNC_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfg := Config{
 		AppEnv:               getenv("APP_ENV", "local"),
 		LogPath:              getenv("LOG_PATH", logging.DefaultLogPath()),
-		SyncEnabled:          getenvBool("SYNC_ENABLED", true),
-		NotificationsEnabled: getenvBool("NOTIFICATIONS_ENABLED", true),
+		SyncEnabled:          syncEnabled,
+		NotificationsEnabled: notificationsEnabled,
 		MongoDB: MongoDBConfig{
 			URI:    getenv("MONGODB_URI", ""),
 			DBName: getenv("MONGODB_DB_NAME", "vocabulary_bot"),
@@ -94,12 +144,12 @@ func Load() (Config, error) {
 			AllowedUserID:             allowedUserID,
 			TargetChatID:              targetChatID,
 			APIBaseURL:                getenv("TELEGRAM_API_BASE_URL", ""),
-			PollingEnabled:            getenvBool("TELEGRAM_POLLING_ENABLED", true),
-			ReviewSpoilerTranslations: getenvBool("TELEGRAM_REVIEW_SPOILER_TRANSLATIONS", true),
+			PollingEnabled:            pollingEnabled,
+			ReviewSpoilerTranslations: reviewSpoilerTranslations,
 		},
 		Review: ReviewConfig{
-			DocumentPushFactor: getenvFloat("REVIEW_DOCUMENT_PUSH_FACTOR", 0.7),
-			BookPushFactor:     getenvFloat("REVIEW_BOOK_PUSH_FACTOR", 1),
+			DocumentPushFactor: documentPushFactor,
+			BookPushFactor:     bookPushFactor,
 		},
 		Schedule: ScheduleConfig{
 			Timezone:     getenv("SCHEDULE_TIMEZONE", ""),
@@ -108,19 +158,19 @@ func Load() (Config, error) {
 			AutoLogsCron: lookupEnvOrDefault("AUTO_LOGS_CRON", "0 21 * * 5"),
 		},
 		PocketBook: PocketBookConfig{
-			Enabled:            getenvBool("POCKETBOOK_SYNC_ENABLED", true),
+			Enabled:            pocketbookSyncEnabled,
 			Email:              firstEnv([]string{"POCKETBOOK_EMAIL", "POCKETBOOK_LOGIN"}, ""),
 			Password:           getenv("POCKETBOOK_PASSWORD", ""),
 			RefreshToken:       getenv("POCKETBOOK_REFRESH_TOKEN", ""),
 			ShopName:           getenv("POCKETBOOK_SHOP_NAME", ""),
 			BaseURL:            getenv("POCKETBOOK_API_BASE_URL", ""),
 			TokenPath:          getenv("POCKETBOOK_TOKEN_PATH", ""),
-			BookContextEnabled: getenvBool("POCKETBOOK_BOOK_CONTEXT_ENABLED", true),
+			BookContextEnabled: bookContextEnabled,
 			BookCacheDir:       getenv("POCKETBOOK_BOOK_CACHE_DIR", ""),
-			BookCacheMax:       getenvInt("POCKETBOOK_BOOK_CACHE_MAX", 2),
+			BookCacheMax:       bookCacheMax,
 		},
 		GoogleSheet: GoogleSheetConfig{
-			Enabled:            getenvBool("GOOGLE_SHEET_SYNC_ENABLED", true),
+			Enabled:            googleSheetSyncEnabled,
 			ServiceAccountJSON: getenv("GOOGLE_SERVICE_ACCOUNT_JSON", ""),
 			SpreadsheetID:      firstEnv([]string{"GOOGLE_SPREADSHEET_ID", "GOOGLE_SHEET_ID"}, ""),
 			SheetName:          getenv("GOOGLE_SHEET_NAME", "Vocabulary"),
@@ -159,46 +209,49 @@ func firstEnv(keys []string, fallback string) string {
 	return fallback
 }
 
-func getenvBool(key string, fallback bool) bool {
+func getenvBool(key string, fallback bool) (bool, error) {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
 
 	parsed, err := strconv.ParseBool(value)
 	if err != nil {
-		return fallback
+		return false, fmt.Errorf("parse %s: %w", key, err)
 	}
 
-	return parsed
+	return parsed, nil
 }
 
-func getenvInt(key string, fallback int) int {
+func getenvInt(key string, fallback int) (int, error) {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
 
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
-		return fallback
+		return 0, fmt.Errorf("parse %s: %w", key, err)
 	}
 
-	return parsed
+	return parsed, nil
 }
 
-func getenvFloat(key string, fallback float64) float64 {
+func getenvFloat(key string, fallback float64) (float64, error) {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
 
 	parsed, err := strconv.ParseFloat(value, 64)
-	if err != nil || parsed <= 0 {
-		return fallback
+	if err != nil {
+		return 0, fmt.Errorf("parse %s: %w", key, err)
+	}
+	if parsed <= 0 {
+		return 0, fmt.Errorf("parse %s: value must be positive", key)
 	}
 
-	return parsed
+	return parsed, nil
 }
 
 func optionalInt64(key string) (int64, error) {
