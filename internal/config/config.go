@@ -3,10 +3,9 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/neuroborus/vocabulary-bot/internal/logging"
 )
 
 type Config struct {
@@ -132,7 +131,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		AppEnv:               getenv("APP_ENV", "local"),
-		LogPath:              getenv("LOG_PATH", logging.DefaultLogPath()),
+		LogPath:              getenv("LOG_PATH", DefaultLogPath()),
 		SyncEnabled:          syncEnabled,
 		NotificationsEnabled: notificationsEnabled,
 		MongoDB: MongoDBConfig{
@@ -266,4 +265,11 @@ func optionalInt64(key string) (int64, error) {
 	}
 
 	return parsed, nil
+}
+
+const logAppDirName = "vocabulary-bot"
+
+// DefaultLogPath returns the writable default log file under the system temp dir.
+func DefaultLogPath() string {
+	return filepath.Join(os.TempDir(), logAppDirName, "logs", "vocabulary.log")
 }

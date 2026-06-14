@@ -1,11 +1,27 @@
 package config_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/neuroborus/vocabulary-bot/internal/config"
 )
+
+func TestDefaultLogPathUsesTempDir(t *testing.T) {
+	t.Parallel()
+
+	got := config.DefaultLogPath()
+	if !strings.HasPrefix(got, os.TempDir()) {
+		t.Fatalf("DefaultLogPath() = %q, want prefix %q", got, os.TempDir())
+	}
+
+	wantSuffix := filepath.Join("vocabulary-bot", "logs", "vocabulary.log")
+	if !strings.HasSuffix(got, wantSuffix) {
+		t.Fatalf("DefaultLogPath() = %q, want suffix %q", got, wantSuffix)
+	}
+}
 
 func TestLoadEnvValidation(t *testing.T) {
 	t.Run("rejects invalid bool", func(t *testing.T) {
