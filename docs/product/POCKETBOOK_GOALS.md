@@ -119,9 +119,9 @@ Preferred application behavior:
 4. If refresh fails because the token is expired or revoked, report a clear re-bootstrap-required error.
 ```
 
-For the current Go implementation, the token store is a file-backed secret store. By default it uses the user's config directory, or the explicit `POCKETBOOK_TOKEN_PATH` when configured. The file must be written with owner-only permissions.
+For the current Go implementation, MongoDB is the preferred token store when `MONGODB_URI` is configured. PocketBook sessions are stored in the `pocketbook_sessions` collection with a stable `_id` for the current account. This collection is secret-bearing storage and must never store the PocketBook password.
 
-For a server or local runner with MongoDB available, the same token-store interface may later be backed by a small MongoDB collection, for example `pocketbook_sessions`. This collection must be treated as secret-bearing storage and should never store the PocketBook password.
+When MongoDB is not configured, the app falls back to a file-backed secret store. By default it uses the user's config directory, or the explicit `POCKETBOOK_TOKEN_PATH` when configured. The file is written with owner-only permissions.
 
 For GitHub Actions:
 
@@ -134,7 +134,7 @@ TELEGRAM_BOT_TOKEN      -> GitHub Actions secret
 TELEGRAM_ALLOWED_USER_ID -> GitHub Actions secret
 ```
 
-If GitHub Actions uses MongoDB as the persistent application database, it can also use MongoDB as the token store. That avoids manually rotating `POCKETBOOK_REFRESH_TOKEN` in repository secrets after the initial bootstrap flow.
+If GitHub Actions uses MongoDB as the persistent application database, it also uses MongoDB as the token store. That avoids manually rotating `POCKETBOOK_REFRESH_TOKEN` in repository secrets after the initial bootstrap flow.
 
 For a local runner or server:
 

@@ -12,27 +12,27 @@ func TestSanitizeStringRedactsSensitiveValues(t *testing.T) {
 	}{
 		{
 			name:  "mongodb uri",
-			input: `connect failed: mongodb+srv://vocabulary-bot:SecretPass@cluster0.example.net/?retryWrites=true&w=majority`,
+			input: `connect failed: mongodb+srv://test-user:FAKE_PASSWORD_FOR_TEST_ONLY@cluster0.example.test/?retryWrites=true&w=majority`,
 			want:  `connect failed: mongodb://***`,
 		},
 		{
 			name:  "bearer token",
-			input: `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload`,
+			input: `Authorization: Bearer FAKE_BEARER_TOKEN_FOR_TEST_ONLY`,
 			want:  `Authorization: Bearer ***`,
 		},
 		{
 			name:  "telegram bot token",
-			input: `invalid token 8892229417:AAE1IqPgEwOqQec7fcRK8t-CgmjHh-JvNKE in request`,
+			input: `invalid token 1234567890:FAKE_TELEGRAM_BOT_TOKEN_FOR_TEST_ONLY in request`,
 			want:  `invalid token ***:*** in request`,
 		},
 		{
 			name:  "query params",
-			input: `POST /auth/login?username=reader@example.test&password=SecretPass&refresh_token=abc123`,
-			want:  `POST /auth/login?username=reader@example.test&password=***&refresh_token=***`,
+			input: `POST /auth/login?username=test-user@example.test&password=FAKE_PASSWORD_FOR_TEST_ONLY&refresh_token=FAKE_REFRESH_TOKEN_FOR_TEST_ONLY`,
+			want:  `POST /auth/login?username=test-user@example.test&password=***&refresh_token=***`,
 		},
 		{
 			name:  "json tokens",
-			input: `{"access_token":"abc123","refresh_token":"def456","password":"SecretPass"}`,
+			input: `{"access_token":"FAKE_ACCESS_TOKEN_FOR_TEST_ONLY","refresh_token":"FAKE_REFRESH_TOKEN_FOR_TEST_ONLY","password":"FAKE_PASSWORD_FOR_TEST_ONLY"}`,
 			want:  `{"access_token":"***","refresh_token":"***","password":"***"}`,
 		},
 		{

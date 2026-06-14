@@ -24,9 +24,11 @@ type MongoDBConfig struct {
 }
 
 type TelegramConfig struct {
-	BotToken      string
-	AllowedUserID int64
-	TargetChatID  int64
+	BotToken       string
+	AllowedUserID  int64
+	TargetChatID   int64
+	APIBaseURL     string
+	PollingEnabled bool
 }
 
 type PocketBookConfig struct {
@@ -68,9 +70,11 @@ func Load() (Config, error) {
 			DBName: getenv("MONGODB_DB_NAME", "vocabulary_bot"),
 		},
 		Telegram: TelegramConfig{
-			BotToken:      getenv("TELEGRAM_BOT_TOKEN", ""),
-			AllowedUserID: allowedUserID,
-			TargetChatID:  targetChatID,
+			BotToken:       getenv("TELEGRAM_BOT_TOKEN", ""),
+			AllowedUserID:  allowedUserID,
+			TargetChatID:   targetChatID,
+			APIBaseURL:     getenv("TELEGRAM_API_BASE_URL", ""),
+			PollingEnabled: getenvBool("TELEGRAM_POLLING_ENABLED", true),
 		},
 		PocketBook: PocketBookConfig{
 			Enabled:      getenvBool("POCKETBOOK_SYNC_ENABLED", true),

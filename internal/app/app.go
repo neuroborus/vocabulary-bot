@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -11,7 +13,9 @@ import (
 	"github.com/neuroborus/vocabulary-bot/internal/source/pocketbook"
 	"github.com/neuroborus/vocabulary-bot/internal/source/spreadsheet"
 	"github.com/neuroborus/vocabulary-bot/internal/storage/memory"
+	mongostorage "github.com/neuroborus/vocabulary-bot/internal/storage/mongo"
 	syncer "github.com/neuroborus/vocabulary-bot/internal/sync"
+	"github.com/neuroborus/vocabulary-bot/internal/telegram"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
@@ -27,10 +31,15 @@ func Run(ctx context.Context) error {
 	}
 	defer closeLogger()
 
-	repository := memory.NewVocabularyRepository()
+	repository, sessionStore, closeStorage, err := buildStorage(ctx, cfg, logger)
+	if err != nil {
+		return err
+	}
+	defer closeStorage()
+
 	vocabularyService := vocabulary.NewService(repository, time.Now)
 
-	sources := buildSources(cfg, logger)
+	sources := buildSources(cfg, logger, sessionStore)
 	syncService := syncer.NewService(sources, vocabularyService, logger)
 
 	logger.Info(
@@ -43,27 +52,69 @@ func Run(ctx context.Context) error {
 
 	if !cfg.SyncEnabled {
 		logger.Info("sync skipped because global sync is disabled")
-		return nil
+	} else {
+		summary, err := syncService.Run(ctx)
+		if err != nil {
+			return err
+		}
+
+		logger.Info(
+			"sync completed",
+			slog.Int("drafts_processed", summary.DraftsProcessed),
+			slog.Int("created", summary.Created),
+			slog.Int("updated", summary.Updated),
+			slog.Int("ambiguous", summary.Ambiguous),
+			slog.Int("source_errors", summary.SourceErrors),
+		)
 	}
 
-	summary, err := syncService.Run(ctx)
-	if err != nil {
-		return err
+	if shouldRunTelegram(cfg) {
+		if err := runTelegram(ctx, cfg, logger, repository, syncService); err != nil && !errors.Is(err, context.Canceled) {
+			return err
+		}
 	}
-
-	logger.Info(
-		"sync completed",
-		slog.Int("drafts_processed", summary.DraftsProcessed),
-		slog.Int("created", summary.Created),
-		slog.Int("updated", summary.Updated),
-		slog.Int("ambiguous", summary.Ambiguous),
-		slog.Int("source_errors", summary.SourceErrors),
-	)
 
 	return nil
 }
 
-func buildSources(cfg config.Config, logger *slog.Logger) []source.Adapter {
+func buildStorage(ctx context.Context, cfg config.Config, logger *slog.Logger) (vocabulary.Repository, pocketbook.SessionStore, func(), error) {
+	sessionStore := pocketbook.SessionStore(pocketbook.NewFileSessionStore(cfg.PocketBook.TokenPath))
+
+	if cfg.MongoDB.URI == "" {
+		return memory.NewVocabularyRepository(), sessionStore, func() {}, nil
+	}
+
+	client, err := mongostorage.Connect(ctx, cfg.MongoDB.URI)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("connect mongodb: %w", err)
+	}
+
+	database := client.Database(cfg.MongoDB.DBName)
+	repository := mongostorage.NewVocabularyRepository(database)
+	if err := repository.EnsureIndexes(ctx); err != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, nil, nil, fmt.Errorf("ensure mongodb indexes: %w", err)
+	}
+
+	logger.Info(
+		"mongodb storage initialized",
+		slog.String("database", cfg.MongoDB.DBName),
+		slog.String("vocabulary_collection", mongostorage.VocabularyCollectionName),
+		slog.String("pocketbook_sessions_collection", mongostorage.PocketBookSessionsCollectionName),
+	)
+
+	closeStorage := func() {
+		disconnectCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := client.Disconnect(disconnectCtx); err != nil {
+			logger.Error("disconnect mongodb failed", slog.String("error", logging.SanitizeError(err)))
+		}
+	}
+
+	return repository, mongostorage.NewPocketBookSessionStore(database), closeStorage, nil
+}
+
+func buildSources(cfg config.Config, logger *slog.Logger, sessionStore pocketbook.SessionStore) []source.Adapter {
 	adapters := make([]source.Adapter, 0, 2)
 
 	if cfg.PocketBook.Enabled {
@@ -73,7 +124,7 @@ func buildSources(cfg config.Config, logger *slog.Logger) []source.Adapter {
 			Password:     cfg.PocketBook.Password,
 			RefreshToken: cfg.PocketBook.RefreshToken,
 			ShopName:     cfg.PocketBook.ShopName,
-			SessionStore: pocketbook.NewFileSessionStore(cfg.PocketBook.TokenPath),
+			SessionStore: sessionStore,
 			Logger:       logger,
 		}))
 	}
@@ -83,4 +134,40 @@ func buildSources(cfg config.Config, logger *slog.Logger) []source.Adapter {
 	}
 
 	return adapters
+}
+
+func shouldRunTelegram(cfg config.Config) bool {
+	return cfg.Telegram.BotToken != "" && cfg.Telegram.PollingEnabled
+}
+
+func runTelegram(
+	ctx context.Context,
+	cfg config.Config,
+	logger *slog.Logger,
+	repository vocabulary.Repository,
+	syncService *syncer.Service,
+) error {
+	if cfg.Telegram.AllowedUserID == 0 {
+		return errors.New("TELEGRAM_ALLOWED_USER_ID is required when Telegram polling is enabled")
+	}
+
+	client := telegram.NewClient(telegram.ClientOptions{
+		BotToken: cfg.Telegram.BotToken,
+		BaseURL:  cfg.Telegram.APIBaseURL,
+	})
+	handler := telegram.NewCommandHandler(telegram.CommandHandlerOptions{
+		Notifier:             client,
+		SyncRunner:           syncService,
+		Repository:           repository,
+		Logger:               logger,
+		AllowedUserID:        cfg.Telegram.AllowedUserID,
+		TargetChatID:         cfg.Telegram.TargetChatID,
+		LogPath:              cfg.LogPath,
+		SyncEnabled:          cfg.SyncEnabled,
+		NotificationsEnabled: cfg.NotificationsEnabled,
+	})
+	bot := telegram.NewBot(client, handler, logger)
+
+	logger.Info("telegram polling started")
+	return bot.Poll(ctx)
 }

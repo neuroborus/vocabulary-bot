@@ -1,0 +1,176 @@
+package telegram
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const defaultAPIBaseURL = "https://api.telegram.org"
+
+type Client struct {
+	botToken   string
+	baseURL    string
+	httpClient *http.Client
+}
+
+type ClientOptions struct {
+	BotToken   string
+	BaseURL    string
+	HTTPClient *http.Client
+}
+
+func NewClient(options ClientOptions) *Client {
+	if options.BaseURL == "" {
+		options.BaseURL = defaultAPIBaseURL
+	}
+	if options.HTTPClient == nil {
+		options.HTTPClient = &http.Client{Timeout: 60 * time.Second}
+	}
+
+	return &Client{
+		botToken:   strings.TrimSpace(options.BotToken),
+		baseURL:    strings.TrimRight(options.BaseURL, "/"),
+		httpClient: options.HTTPClient,
+	}
+}
+
+func (c *Client) GetUpdates(ctx context.Context, offset int, timeoutSeconds int) ([]Update, error) {
+	values := url.Values{}
+	if offset > 0 {
+		values.Set("offset", strconv.Itoa(offset))
+	}
+	if timeoutSeconds > 0 {
+		values.Set("timeout", strconv.Itoa(timeoutSeconds))
+	}
+	values.Set("allowed_updates", `["message"]`)
+
+	endpoint := c.methodURL("getUpdates")
+	if encoded := values.Encode(); encoded != "" {
+		endpoint += "?" + encoded
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response apiResponse[[]Update]
+	if err := c.doJSON(req, &response); err != nil {
+		return nil, err
+	}
+	if !response.OK {
+		return nil, fmt.Errorf("telegram getUpdates failed: %s", response.Description)
+	}
+
+	return response.Result, nil
+}
+
+func (c *Client) SendMessage(ctx context.Context, chatID int64, text string) error {
+	values := url.Values{}
+	values.Set("chat_id", strconv.FormatInt(chatID, 10))
+	values.Set("text", text)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("sendMessage"), strings.NewReader(values.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	var response apiResponse[json.RawMessage]
+	if err := c.doJSON(req, &response); err != nil {
+		return err
+	}
+	if !response.OK {
+		return fmt.Errorf("telegram sendMessage failed: %s", response.Description)
+	}
+
+	return nil
+}
+
+func (c *Client) SendDocument(ctx context.Context, chatID int64, path string, caption string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	if err := writer.WriteField("chat_id", strconv.FormatInt(chatID, 10)); err != nil {
+		return err
+	}
+	if caption != "" {
+		if err := writer.WriteField("caption", caption); err != nil {
+			return err
+		}
+	}
+
+	part, err := writer.CreateFormFile("document", filepath.Base(path))
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(part, file); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("sendDocument"), &body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	var response apiResponse[json.RawMessage]
+	if err := c.doJSON(req, &response); err != nil {
+		return err
+	}
+	if !response.OK {
+		return fmt.Errorf("telegram sendDocument failed: %s", response.Description)
+	}
+
+	return nil
+}
+
+func (c *Client) methodURL(method string) string {
+	return c.baseURL + "/bot" + c.botToken + "/" + method
+}
+
+func (c *Client) doJSON(req *http.Request, target any) error {
+	response, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return fmt.Errorf("telegram http error %s", response.Status)
+	}
+
+	decoder := json.NewDecoder(response.Body)
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type apiResponse[T any] struct {
+	OK          bool   `json:"ok"`
+	Description string `json:"description"`
+	Result      T      `json:"result"`
+}

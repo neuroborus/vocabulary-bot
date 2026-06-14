@@ -87,6 +87,16 @@ description: Post-change finalization checklist for the Vocabulary Bot Go projec
 - [ ] New runtime config is loaded through `internal/config`.
 - [ ] `.env.example` is updated when env vars change.
 - [ ] No production secrets, Telegram tokens, Google service account JSON, PocketBook credentials, refresh tokens, cookies, or raw credential-bearing payloads are committed.
+- [ ] Tests, fixtures, docs, and committed examples use obviously artificial credential placeholders (`FAKE_*_FOR_TEST_ONLY`, `example.test`, `old-access`), not values that resemble real JWTs, Telegram bot tokens, MongoDB passwords, or other production-like secrets.
+- [ ] Scan the tracked repo for realistic-looking credential placeholders before staging:
+
+```bash
+rg -P -n 'eyJhbGci|SecretPass|\b\d{8,10}:(?!FAKE_)[A-Za-z0-9_-]{20,}\b|mongodb\+srv://[^:]+:(?!FAKE_)[^@]+@|Bearer eyJ' \
+  --glob '!.env' --glob '!.env.*' --glob '!*.log' .
+```
+
+Expected result: no matches. If matches appear, replace them with obviously artificial placeholders such as `FAKE_*_FOR_TEST_ONLY` before staging.
+
 - [ ] Logs do not include secrets or full raw provider responses that may contain credentials.
 - [ ] `.gitignore` keeps local `.env`, logs, build output, coverage output, and temp files out of commits.
 

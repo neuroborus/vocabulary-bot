@@ -876,11 +876,13 @@ MONGODB_DB_NAME=
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_ALLOWED_USER_ID=
 TELEGRAM_TARGET_CHAT_ID=
+TELEGRAM_POLLING_ENABLED=true
+TELEGRAM_API_BASE_URL=
 
 POCKETBOOK_EMAIL=
 POCKETBOOK_PASSWORD=      # bootstrap only
 POCKETBOOK_REFRESH_TOKEN= # optional override; normal bootstrap persists token automatically
-POCKETBOOK_TOKEN_PATH=
+POCKETBOOK_TOKEN_PATH=    # fallback only when MongoDB is not configured
 POCKETBOOK_API_BASE_URL=  # optional test/discovery override
 
 GOOGLE_SHEET_ID=

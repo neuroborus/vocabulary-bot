@@ -36,7 +36,16 @@ make vet
 make run
 ```
 
-The scaffold uses only the Go standard library for now, so tests run without network access or external services.
+Runtime code uses the official MongoDB Go driver when `MONGODB_URI` is configured. Most tests use fake HTTP servers and in-memory storage. MongoDB storage tests connect to `MONGODB_URI` or `mongodb://127.0.0.1:27017` and skip when MongoDB is unavailable.
+
+## Storage
+
+If `MONGODB_URI` is set, the app uses MongoDB:
+
+- `vocabulary_items` stores merged vocabulary entities;
+- `pocketbook_sessions` stores the current PocketBook access/refresh session.
+
+If `MONGODB_URI` is empty, the app falls back to an in-memory vocabulary repository and a file-backed PocketBook session store.
 
 ## PocketBook Sync
 
@@ -44,7 +53,7 @@ The PocketBook adapter uses the unofficial PocketBook Cloud API flow observed in
 
 - discover shops by email;
 - bootstrap with `POCKETBOOK_EMAIL` and `POCKETBOOK_PASSWORD`;
-- store the returned access/refresh session in an owner-only file;
+- store the returned access/refresh session in MongoDB `pocketbook_sessions`, or in an owner-only file when MongoDB is not configured;
 - renew the session with the stored refresh token;
 - fall back to password bootstrap and replace the stored session when the old refresh token is rejected;
 - fetch books, note IDs, note details, and emit common `vocabulary.Draft` values.
@@ -60,6 +69,24 @@ POCKETBOOK_REFRESH_TOKEN=
 ```
 
 `POCKETBOOK_REFRESH_TOKEN` is only an override. Normal setup should let the app capture and persist the token automatically. Because the API is unofficial, real account payloads still need sanitized fixtures before tightening dictionary-note parsing.
+
+## Telegram
+
+When `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_ID`, and `TELEGRAM_POLLING_ENABLED=true` are configured, the app starts Telegram long polling after startup sync.
+
+Minimal commands:
+
+```text
+/health
+/sync
+/list-words
+/logs
+/turn-off
+/turn-on
+/push
+```
+
+`/push` is currently a placeholder until review selection and notification scheduling are implemented.
 
 ## Main Rules Already Encoded
 
