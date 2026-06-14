@@ -27,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 	if !cfg.PocketBook.Enabled {
-		fmt.Fprintln(os.Stderr, "POCKETBOOK_ENABLED is false")
+		fmt.Fprintln(os.Stderr, "POCKETBOOK_SYNC_ENABLED is false")
 		os.Exit(1)
 	}
 

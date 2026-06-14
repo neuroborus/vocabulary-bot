@@ -4,7 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
-- Sanitizing slog handler now redacts attrs added through `Logger.With`, including known secret-bearing keys such as `access_token`, `refresh_token`, and `password`.
+- PocketBook discovery commands now report `POCKETBOOK_SYNC_ENABLED is false` and both `pocketbook-dump-note` and `pocketbook-list-books` honor the same source switch.
 - Mongo PocketBook session persistence now depends on `internal/source/session` instead of `internal/source/pocketbook`, keeping storage adapters free of concrete source-package imports.
 - Spreadsheet docs now match the parser layout: `enabled` lives in column F, so the default `GOOGLE_SHEET_RANGE=Vocabulary!A:F` is correct for the manual-import sheet.
 - Deploy workflow now passes every variable supported by `deploy/render-env.sh`, so optional production settings such as `TELEGRAM_POLLING_ENABLED`, `SCHEDULE_TIMEZONE`, and PocketBook cache overrides take effect on deploy.

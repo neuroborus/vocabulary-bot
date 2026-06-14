@@ -20,6 +20,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "load config: %v\n", err)
 		os.Exit(1)
 	}
+	if !cfg.PocketBook.Enabled {
+		fmt.Fprintln(os.Stderr, "POCKETBOOK_SYNC_ENABLED is false")
+		os.Exit(1)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
