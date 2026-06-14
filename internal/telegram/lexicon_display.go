@@ -12,7 +12,7 @@ var (
 	transcriptionPrefixPattern = regexp.MustCompile(`^\[([^\]]+)\]\s*`)
 	posHeaderPattern           = regexp.MustCompile(`(?i)^(noun|verb|adjective|adverb|preposition|conjunction|pronoun|phrase|participle|gerund)\b(?:\s+\d+\)\s*|\s+\d+\)|\s*:\s*|\s+|$)`)
 	numberedMeaningPattern     = regexp.MustCompile(`^\d+\)\s*`)
-	qualifierPattern           = regexp.MustCompile(`(?i)^о\s+`)
+	qualifierPattern           = regexp.MustCompile(`(?i)^(о|по|из|на|для|с|в|при)\s+`)
 	examplePairPattern         = regexp.MustCompile(`^(.+?)\s+-\s+(.+)$`)
 )
 

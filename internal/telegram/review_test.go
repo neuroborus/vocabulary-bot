@@ -103,6 +103,46 @@ func TestFormatReviewReminderSimpleTranslation(t *testing.T) {
 	}
 }
 
+func TestFormatReviewReminderAttachesRussianQualifiers(t *testing.T) {
+	t.Parallel()
+
+	text := formatReviewReminder(vocabulary.Item{
+		DisplayWord: "carve",
+		Translations: []string{
+			"[kɑ:v] Verb 1) вырезать",
+			"2) резать",
+			"по дереву или кости",
+			"3) высекать",
+			"из камня",
+			"4) гравировать",
+			"5) разрезать",
+		},
+	})
+
+	for _, want := range []string{
+		"<b>carve</b>",
+		"<i>[kɑ:v]</i>",
+		"<b>Verb</b>",
+		"вырезать",
+		"резать (по дереву или кости)",
+		"высекать (из камня)",
+		"гравировать",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("reminder missing %q:\n%s", want, text)
+		}
+	}
+
+	for _, unwanted := range []string{
+		"• по дереву или кости",
+		"• из камня",
+	} {
+		if strings.Contains(text, unwanted) {
+			t.Fatalf("reminder should not list qualifier as separate bullet %q:\n%s", unwanted, text)
+		}
+	}
+}
+
 func TestFormatReviewReminderCleansDanglingBookQuotes(t *testing.T) {
 	t.Parallel()
 
