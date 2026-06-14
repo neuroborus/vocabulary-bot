@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 	"github.com/neuroborus/vocabulary-bot/internal/source"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
@@ -58,13 +59,13 @@ func (s *Service) Run(ctx context.Context) (Summary, error) {
 		}
 
 		if err != nil {
-			sourceSummary.Error = err.Error()
+			sourceSummary.Error = logging.SanitizeError(err)
 			summary.SourceErrors++
 			summary.Sources = append(summary.Sources, sourceSummary)
 			s.logger.Error(
 				"source sync failed",
 				slog.String("source", adapter.Name()),
-				slog.String("error", err.Error()),
+				slog.String("error", logging.SanitizeError(err)),
 			)
 			continue
 		}

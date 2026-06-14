@@ -2,6 +2,8 @@ package pocketbook
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -45,11 +47,11 @@ type Book struct {
 }
 
 type BookMetadata struct {
-	Title   string      `json:"title"`
-	Authors string      `json:"authors"`
-	Year    string      `json:"year"`
-	ISBN    string      `json:"isbn"`
-	Cover   []BookCover `json:"cover"`
+	Title   string         `json:"title"`
+	Authors string         `json:"authors"`
+	Year    FlexibleString `json:"year"`
+	ISBN    FlexibleString `json:"isbn"`
+	Cover   []BookCover    `json:"cover"`
 }
 
 type BookCover struct {
@@ -105,6 +107,54 @@ type Mark struct {
 
 type FlexibleTime struct {
 	Time time.Time
+}
+
+type FlexibleString struct {
+	Value string
+}
+
+func (s *FlexibleString) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" || len(data) == 0 {
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		s.Value = text
+		return nil
+	}
+
+	var number json.Number
+	if err := json.Unmarshal(data, &number); err == nil {
+		s.Value = number.String()
+		return nil
+	}
+
+	var integer int64
+	if err := json.Unmarshal(data, &integer); err == nil {
+		s.Value = strconv.FormatInt(integer, 10)
+		return nil
+	}
+
+	var floating float64
+	if err := json.Unmarshal(data, &floating); err == nil {
+		s.Value = strconv.FormatFloat(floating, 'f', -1, 64)
+		return nil
+	}
+
+	return fmt.Errorf("unsupported flexible string json: %s", string(data))
+}
+
+func (s FlexibleString) MarshalJSON() ([]byte, error) {
+	if s.Value == "" {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(s.Value)
+}
+
+func (s FlexibleString) String() string {
+	return s.Value
 }
 
 func (t *FlexibleTime) UnmarshalJSON(data []byte) error {

@@ -20,7 +20,7 @@ func NewFileLogger(path string) (*slog.Logger, func() error, error) {
 		return nil, nil, err
 	}
 
-	logger := slog.New(slog.NewJSONHandler(file, &slog.HandlerOptions{}))
+	logger := slog.New(NewSanitizingHandler(slog.NewJSONHandler(file, &slog.HandlerOptions{})))
 
 	return logger, file.Close, nil
 }

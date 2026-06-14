@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/neuroborus/vocabulary-bot/internal/app"
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
 	defer stop()
 
 	if err := app.Run(ctx); err != nil {
-		slog.Error("application failed", slog.String("error", err.Error()))
+		slog.Error("application failed", slog.String("error", logging.SanitizeError(err)))
 		os.Exit(1)
 	}
 }
