@@ -529,16 +529,15 @@ A reminder message should show:
 
 ```text
 word / known forms
-source label (PocketBook book title with author, or Document for PDFs)
 translations
 one or more contexts
+source label at the bottom (PocketBook book title with author, or Document for PDFs)
 ```
 
 Example:
 
 ```text
 to decelerate
-Necromancer — Fred Saberhagen
 
 Forms:
 - decelerate
@@ -551,6 +550,8 @@ Translations:
 Contexts:
 - The car began to decelerate rapidly.
 - The train started to decelerate before the station.
+
+Necromancer — Fred Saberhagen
 ```
 
 Suggested buttons:

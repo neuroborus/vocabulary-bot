@@ -128,6 +128,8 @@ func buildSources(cfg config.Config, logger *slog.Logger, sessionStore pocketboo
 			SessionStore:       sessionStore,
 			Logger:             logger,
 			BookContextEnabled: cfg.PocketBook.BookContextEnabled,
+			BookCacheDir:       cfg.PocketBook.BookCacheDir,
+			BookCacheMax:       cfg.PocketBook.BookCacheMax,
 		}))
 	}
 

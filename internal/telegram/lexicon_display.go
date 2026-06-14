@@ -36,12 +36,6 @@ func formatReviewReminder(item vocabulary.Item, spoilerTranslations bool) string
 	builder.WriteString(escapeHTML(item.DisplayWord))
 	builder.WriteString("</b>")
 
-	if sourceLabel := vocabulary.PrimarySourceLabel(item); sourceLabel != "" {
-		builder.WriteString("\n<i>")
-		builder.WriteString(escapeHTML(sourceLabel))
-		builder.WriteString("</i>")
-	}
-
 	if len(lexicon.Contexts) > 0 {
 		builder.WriteString("\n\n<b>Context</b>")
 		for _, contextValue := range lexicon.Contexts {
@@ -51,17 +45,21 @@ func formatReviewReminder(item vocabulary.Item, spoilerTranslations bool) string
 	}
 
 	translationSection := formatTranslationSection(item, lexicon)
-	if translationSection == "" {
-		return builder.String()
+	if translationSection != "" {
+		if spoilerTranslations {
+			builder.WriteString("\n\n<tg-spoiler>")
+			builder.WriteString(translationSection)
+			builder.WriteString("</tg-spoiler>")
+		} else {
+			builder.WriteString("\n\n")
+			builder.WriteString(translationSection)
+		}
 	}
 
-	if spoilerTranslations {
-		builder.WriteString("\n\n<tg-spoiler>")
-		builder.WriteString(translationSection)
-		builder.WriteString("</tg-spoiler>")
-	} else {
-		builder.WriteString("\n\n")
-		builder.WriteString(translationSection)
+	if sourceLabel := vocabulary.PrimarySourceLabel(item); sourceLabel != "" {
+		builder.WriteString("\n\n<i>")
+		builder.WriteString(escapeHTML(sourceLabel))
+		builder.WriteString("</i>")
 	}
 
 	return builder.String()

@@ -4,7 +4,8 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
-- PocketBook anchors now carry `sourceLabel` (`Title — Author` for books, `Document` for PDFs); `/push` cards show the latest label under the word.
+- PocketBook book-context enrichment now uses an on-disk cache under `$TMPDIR/vocabulary-bot/books` (override with `POCKETBOOK_BOOK_CACHE_DIR`), keyed by `fast_hash`, with `lastUsedAt` sidecar metadata and LRU eviction at `POCKETBOOK_BOOK_CACHE_MAX` (default `2`); stale versions for the same `bookId` are removed when `fast_hash` changes.
+- `/push` cards now show the PocketBook source label at the bottom of the message, after context and translations.
 - Quoted `AUTO_SYNC_CRON` and `AUTO_PUSH_CRON` in `.env.example` so `source .env` does not treat cron spaces as shell commands.
 - Added `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS` to hide `/push` translation blocks behind a Telegram spoiler by default.
 - Added in-process cron scheduling via `AUTO_SYNC_CRON` (default `0 9 * * *`) and `AUTO_PUSH_CRON` (default `0 12-21/2 * * *`) with optional `SCHEDULE_TIMEZONE`; scheduled jobs respect `/turn_off` and `/turn_on`.

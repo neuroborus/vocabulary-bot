@@ -76,6 +76,8 @@ func TestAdapterEnrichesDictionaryWordWithBookSentence(t *testing.T) {
 		Logger:             slog.New(slog.NewTextHandler(testWriter{t: t}, nil)),
 		Now:                func() time.Time { return now },
 		BookContextEnabled: true,
+		BookCacheDir:       t.TempDir(),
+		BookCacheMax:       2,
 	})
 
 	drafts, err := adapter.Sync(context.Background())
@@ -97,7 +99,7 @@ func TestAdapterEnrichesDictionaryWordWithBookSentence(t *testing.T) {
 	}
 }
 
-func TestEnrichBookDraftsDeletesTempBookFile(t *testing.T) {
+func TestEnrichBookDraftsKeepsCachedBookFile(t *testing.T) {
 	t.Parallel()
 
 	body := `<html><body><p>He had to lean against the wall.</p></body></html>`
@@ -113,6 +115,7 @@ func TestEnrichBookDraftsDeletesTempBookFile(t *testing.T) {
 	}
 	offset := findSubstringOffset(text, "lean")
 
+	cacheDir := t.TempDir()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/download/book-1.epub" {
 			_, _ = w.Write(epubData)
@@ -126,10 +129,15 @@ func TestEnrichBookDraftsDeletesTempBookFile(t *testing.T) {
 		BaseURL:      server.URL,
 		SessionStore: NewMemorySessionStore(Session{AccessToken: "access", AccessTokenExpiresAt: time.Now().Add(time.Hour)}),
 	})
+	cache, err := NewBookCache(BookCacheOptions{Dir: cacheDir, Max: 2})
+	if err != nil {
+		t.Fatalf("NewBookCache() error = %v", err)
+	}
 	adapter := &Adapter{
 		client:             client,
 		logger:             slog.New(slog.NewTextHandler(testWriter{t: t}, nil)),
 		bookContextEnabled: true,
+		bookCache:          cache,
 	}
 
 	book := Book{
@@ -151,14 +159,13 @@ func TestEnrichBookDraftsDeletesTempBookFile(t *testing.T) {
 
 	adapter.enrichBookDrafts(context.Background(), book, parsed)
 
-	matches, err := filepath.Glob(filepath.Join(os.TempDir(), "vocabulary-bot-book-*"))
-	if err != nil {
-		t.Fatalf("glob temp dirs: %v", err)
+	cachedBookPath := filepath.Join(cacheDir, cachedBookFileName(book))
+	if _, err := os.Stat(cachedBookPath); err != nil {
+		t.Fatalf("cached book file missing: %v", err)
 	}
-	for _, match := range matches {
-		if _, err := os.Stat(match); err == nil {
-			t.Fatalf("temp book dir still exists: %s", match)
-		}
+	metaPath := cachedBookPath + ".meta.json"
+	if _, err := os.Stat(metaPath); err != nil {
+		t.Fatalf("cached book meta missing: %v", err)
 	}
 }
 

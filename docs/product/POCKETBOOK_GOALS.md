@@ -352,7 +352,7 @@ Preferred source order for book sentence context:
 4. optional future EPUB/offs sentence backfill for pbr:/word dictionary notes
 ```
 
-This EPUB/offs backfill is implemented behind `POCKETBOOK_BOOK_CONTEXT_ENABLED`. During PocketBook sync the adapter processes each book sequentially: download to a temp file, enrich dictionary-word drafts that still need a book sentence, then delete the temp file before moving to the next book.
+This EPUB/offs backfill is implemented behind `POCKETBOOK_BOOK_CONTEXT_ENABLED`. During PocketBook sync the adapter processes each book sequentially: acquire the book file from the local cache (`$TMPDIR/vocabulary-bot/books` by default, override with `POCKETBOOK_BOOK_CACHE_DIR`), enrich dictionary-word drafts that still need a book sentence, update `lastUsedAt`, evict entries older than `POCKETBOOK_BOOK_CACHE_MAX` (default `2`), and remove stale cached versions when the same `bookId` gets a new `fast_hash`.
 
 Discovery tooling for this area:
 

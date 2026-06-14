@@ -48,6 +48,8 @@ type PocketBookConfig struct {
 	BaseURL            string
 	TokenPath          string
 	BookContextEnabled bool
+	BookCacheDir       string
+	BookCacheMax       int
 }
 
 type GoogleSheetConfig struct {
@@ -100,6 +102,8 @@ func Load() (Config, error) {
 			BaseURL:            getenv("POCKETBOOK_API_BASE_URL", ""),
 			TokenPath:          getenv("POCKETBOOK_TOKEN_PATH", ""),
 			BookContextEnabled: getenvBool("POCKETBOOK_BOOK_CONTEXT_ENABLED", true),
+			BookCacheDir:       getenv("POCKETBOOK_BOOK_CACHE_DIR", ""),
+			BookCacheMax:       getenvInt("POCKETBOOK_BOOK_CACHE_MAX", 2),
 		},
 		GoogleSheet: GoogleSheetConfig{
 			Enabled:            getenvBool("GOOGLE_SHEET_SYNC_ENABLED", true),
@@ -148,6 +152,20 @@ func getenvBool(key string, fallback bool) bool {
 	}
 
 	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+
+	return parsed
+}
+
+func getenvInt(key string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return fallback
 	}

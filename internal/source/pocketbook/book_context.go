@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
@@ -94,28 +93,17 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 		return
 	}
 
-	tempDir, err := os.MkdirTemp("", "vocabulary-bot-book-*")
-	if err != nil {
+	if a.bookCache == nil {
 		a.logger.Warn(
-			"pocketbook book temp dir failed",
+			"pocketbook book context enrichment skipped because book cache is unavailable",
 			slog.String("book_id", book.ID),
-			slog.String("error", err.Error()),
+			slog.String("title", book.Title),
 		)
 		return
 	}
-	defer func() {
-		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
-			a.logger.Warn(
-				"pocketbook book temp dir cleanup failed",
-				slog.String("book_id", book.ID),
-				slog.String("path", tempDir),
-				slog.String("error", removeErr.Error()),
-			)
-		}
-	}()
 
-	bookPath := joinBookPath(tempDir, book)
-	if err := a.client.DownloadFile(ctx, downloadURL, bookPath); err != nil {
+	bookPath, err := a.bookCache.Acquire(ctx, a.client, book, downloadURL)
+	if err != nil {
 		a.logger.Warn(
 			"pocketbook book download failed",
 			slog.String("book_id", book.ID),

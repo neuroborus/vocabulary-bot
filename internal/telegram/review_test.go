@@ -24,8 +24,11 @@ func TestFormatReviewReminderShowsSourceLabel(t *testing.T) {
 	if !strings.Contains(text, "Necromancer — Fred Saberhagen") {
 		t.Fatalf("source label missing: %q", text)
 	}
-	if strings.Index(text, "Necromancer") > strings.Index(text, "<b>Context</b>") {
-		t.Fatalf("source label should appear before context: %q", text)
+	if strings.Index(text, "Necromancer") < strings.Index(text, "<b>Context</b>") {
+		t.Fatalf("source label should appear after context: %q", text)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(text), "Necromancer — Fred Saberhagen</i>") {
+		t.Fatalf("source label should be at the bottom: %q", text)
 	}
 }
 

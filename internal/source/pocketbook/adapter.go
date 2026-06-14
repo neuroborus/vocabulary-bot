@@ -14,6 +14,7 @@ type Adapter struct {
 	client             *Client
 	logger             *slog.Logger
 	bookContextEnabled bool
+	bookCache          *BookCache
 }
 
 type AdapterOptions struct {
@@ -27,6 +28,8 @@ type AdapterOptions struct {
 	Logger             *slog.Logger
 	Now                func() time.Time
 	BookContextEnabled bool
+	BookCacheDir       string
+	BookCacheMax       int
 }
 
 func NewAdapter(options AdapterOptions) *Adapter {
@@ -47,11 +50,30 @@ func NewAdapter(options AdapterOptions) *Adapter {
 		Now:          options.Now,
 	})
 
-	return &Adapter{
+	adapter := &Adapter{
 		client:             client,
 		logger:             logger,
 		bookContextEnabled: options.BookContextEnabled,
 	}
+
+	if options.BookContextEnabled {
+		bookCache, err := NewBookCache(BookCacheOptions{
+			Dir:    options.BookCacheDir,
+			Max:    options.BookCacheMax,
+			Logger: logger,
+			Now:    options.Now,
+		})
+		if err != nil {
+			logger.Warn(
+				"pocketbook book cache disabled",
+				slog.String("error", err.Error()),
+			)
+		} else {
+			adapter.bookCache = bookCache
+		}
+	}
+
+	return adapter
 }
 
 func (a *Adapter) Name() string {
