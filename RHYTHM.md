@@ -5,6 +5,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 ## 2026-06-14
 
 - Google Sheets row edits now replace the prior row contribution instead of append-only merge: sheet anchors store a `rowSnapshot`, changed rows subtract the old snapshot, apply the new draft, rebuild lookup keys, and move the row anchor when the edited word matches another item.
+- Telegram review callbacks now use a short SHA-256 token in `callback_data` instead of embedding `normalizedKey`, keeping inline keyboard payloads within Telegram's 64-byte limit.
 - Google Sheets sync now skips unchanged rows on repeat syncs using `sheetName + rowNumber` anchor fingerprints (`rowFingerprint` on the sheet anchor); full range is still fetched, but unchanged rows avoid Mongo writes and show `rows skipped (unchanged)` in `/sync`.
 - Implemented Google Sheets source sync: service-account auth from `GOOGLE_SERVICE_ACCOUNT_JSON` (raw JSON or base64), `spreadsheets.values.get` for `GOOGLE_SHEET_RANGE`, row parsing into `vocabulary.Draft`, and row-level error logging without aborting the whole source; sentence-style rows with commas in `word` keep the whole `translations` cell intact.
 - Documented the recommended manual Google Sheets import template `word | translations | contexts | note | tags | enabled`, including how optional `note`, `tags`, and `enabled` cells are parsed and when to leave them empty.

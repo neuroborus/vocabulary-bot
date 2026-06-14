@@ -1,6 +1,8 @@
 package telegram
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -8,9 +10,10 @@ import (
 )
 
 const (
-	reviewCallbackPrefix = "review"
-	reviewActionEasy     = "easy"
-	reviewActionHard     = "hard"
+	reviewCallbackPrefix     = "review"
+	reviewActionEasy         = "easy"
+	reviewActionHard         = "hard"
+	reviewCallbackTokenBytes = 6
 )
 
 type InlineKeyboardMarkup struct {
@@ -53,11 +56,16 @@ func formatReviewAnswered(item vocabulary.Item, action string, spoilerTranslatio
 	return base + footer
 }
 
-func reviewCallbackData(action, normalizedKey string) string {
-	return fmt.Sprintf("%s:%s:%s", reviewCallbackPrefix, action, normalizedKey)
+func reviewCallbackToken(normalizedKey string) string {
+	sum := sha256.Sum256([]byte(normalizedKey))
+	return hex.EncodeToString(sum[:reviewCallbackTokenBytes])
 }
 
-func parseReviewCallback(data string) (action string, normalizedKey string, ok bool) {
+func reviewCallbackData(action, normalizedKey string) string {
+	return fmt.Sprintf("%s:%s:%s", reviewCallbackPrefix, action, reviewCallbackToken(normalizedKey))
+}
+
+func parseReviewCallback(data string) (action string, token string, ok bool) {
 	parts := strings.SplitN(data, ":", 3)
 	if len(parts) != 3 || parts[0] != reviewCallbackPrefix {
 		return "", "", false

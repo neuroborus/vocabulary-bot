@@ -144,7 +144,7 @@ func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query Callback
 		return nil
 	}
 
-	action, normalizedKey, ok := parseReviewCallback(query.Data)
+	action, token, ok := parseReviewCallback(query.Data)
 	if !ok {
 		return h.notifier.AnswerCallbackQuery(ctx, query.ID, "Unknown action")
 	}
@@ -152,13 +152,15 @@ func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query Callback
 		return h.notifier.AnswerCallbackQuery(ctx, query.ID, "Vocabulary repository is not configured")
 	}
 
-	item, found, err := h.findItemByNormalizedKey(ctx, normalizedKey)
+	item, found, err := h.findItemByReviewToken(ctx, token)
 	if err != nil {
 		return h.notifier.AnswerCallbackQuery(ctx, query.ID, "Lookup failed")
 	}
 	if !found {
 		return h.notifier.AnswerCallbackQuery(ctx, query.ID, "Word not found")
 	}
+
+	normalizedKey := item.NormalizedKey
 
 	now := h.now().UTC()
 
@@ -301,18 +303,27 @@ func (h *CommandHandler) reviewDeliveryChatID(commandChatID int64) int64 {
 	return commandChatID
 }
 
-func (h *CommandHandler) findItemByNormalizedKey(ctx context.Context, normalizedKey string) (vocabulary.Item, bool, error) {
-	matches, err := h.repository.FindByLookupKeys(ctx, []string{normalizedKey})
+func (h *CommandHandler) findItemByReviewToken(ctx context.Context, token string) (vocabulary.Item, bool, error) {
+	items, err := h.repository.List(ctx)
 	if err != nil {
 		return vocabulary.Item{}, false, err
 	}
-	for _, item := range matches {
-		if item.NormalizedKey == normalizedKey {
-			return item, true, nil
+
+	var match vocabulary.Item
+	found := false
+
+	for _, item := range items {
+		if reviewCallbackToken(item.NormalizedKey) != token {
+			continue
 		}
+		if found {
+			return vocabulary.Item{}, false, fmt.Errorf("ambiguous review callback token %q", token)
+		}
+		match = item
+		found = true
 	}
 
-	return vocabulary.Item{}, false, nil
+	return match, found, nil
 }
 
 func (h *CommandHandler) healthText(ctx context.Context) string {

@@ -280,15 +280,19 @@ func TestParseLexiconDisplayExtractsTranscriptionAndPOS(t *testing.T) {
 func TestParseReviewCallback(t *testing.T) {
 	t.Parallel()
 
-	action, key, ok := parseReviewCallback(reviewCallbackData(reviewActionHard, "decelerate"))
+	normalizedKey := "decelerate"
+	action, token, ok := parseReviewCallback(reviewCallbackData(reviewActionHard, normalizedKey))
 	if !ok {
 		t.Fatal("parseReviewCallback() = false, want true")
 	}
 	if action != reviewActionHard {
 		t.Fatalf("action = %q, want %q", action, reviewActionHard)
 	}
-	if key != "decelerate" {
-		t.Fatalf("key = %q, want decelerate", key)
+	if token != reviewCallbackToken(normalizedKey) {
+		t.Fatalf("token = %q, want %q", token, reviewCallbackToken(normalizedKey))
+	}
+	if strings.Contains(token, normalizedKey) {
+		t.Fatalf("token must not embed normalized key: %q", token)
 	}
 }
 
@@ -325,11 +329,15 @@ func TestFormatReviewAnsweredAppendsChoice(t *testing.T) {
 func TestReviewKeyboardCallbackDataWithinTelegramLimit(t *testing.T) {
 	t.Parallel()
 
-	keyboard := reviewKeyboard("to decelerate rapidly")
+	longKey := strings.Repeat("assessingtherisksandbenefitsoftheproposedtrial", 4)
+	keyboard := reviewKeyboard(longKey)
 	for _, row := range keyboard.InlineKeyboard {
 		for _, button := range row {
 			if len(button.CallbackData) > 64 {
 				t.Fatalf("callback data too long (%d): %q", len(button.CallbackData), button.CallbackData)
+			}
+			if strings.Contains(button.CallbackData, longKey) {
+				t.Fatalf("callback data must not embed normalized key: %q", button.CallbackData)
 			}
 		}
 	}
