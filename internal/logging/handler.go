@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"log/slog"
+	"strings"
 )
 
 type sanitizingHandler struct {
@@ -32,7 +33,11 @@ func (h *sanitizingHandler) Handle(ctx context.Context, record slog.Record) erro
 }
 
 func (h *sanitizingHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &sanitizingHandler{inner: h.inner.WithAttrs(attrs)}
+	sanitized := make([]slog.Attr, len(attrs))
+	for i, attr := range attrs {
+		sanitized[i] = sanitizeAttr(attr)
+	}
+	return &sanitizingHandler{inner: h.inner.WithAttrs(sanitized)}
 }
 
 func (h *sanitizingHandler) WithGroup(name string) slog.Handler {
@@ -55,18 +60,43 @@ func sanitizeAttr(attr slog.Attr) slog.Attr {
 	}
 
 	if attr.Value.Kind() == slog.KindString {
-		return slog.String(attr.Key, SanitizeString(attr.Value.String()))
+		return slog.String(attr.Key, sanitizeAttrString(attr.Key, attr.Value.String()))
 	}
 
 	if attr.Value.Kind() == slog.KindLogValuer {
-		return slog.String(attr.Key, SanitizeString(attr.Value.String()))
+		return slog.String(attr.Key, sanitizeAttrString(attr.Key, attr.Value.String()))
 	}
 
 	if attr.Value.Kind() == slog.KindAny {
 		if text, ok := attr.Value.Any().(string); ok {
-			return slog.String(attr.Key, SanitizeString(text))
+			return slog.String(attr.Key, sanitizeAttrString(attr.Key, text))
 		}
 	}
 
 	return attr
+}
+
+func sanitizeAttrString(key, value string) string {
+	if isSensitiveAttrKey(key) {
+		return "***"
+	}
+
+	return SanitizeString(value)
+}
+
+func isSensitiveAttrKey(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "password",
+		"access_token",
+		"refresh_token",
+		"client_secret",
+		"token",
+		"authorization",
+		"cookie",
+		"private_key",
+		"private_key_id":
+		return true
+	default:
+		return false
+	}
 }
