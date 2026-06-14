@@ -94,7 +94,7 @@ GOOGLE_SHEET_NAME=Vocabulary
 Optional:
 
 ```text
-GOOGLE_SHEET_RANGE=Vocabulary!A:Z
+GOOGLE_SHEET_RANGE=Vocabulary!A:F
 ```
 
 ### Why not OAuth user login for MVP
@@ -125,11 +125,10 @@ Recommended columns:
 | C | contexts | No | Dot-separated contexts/sentences |
 | D | note | No | Optional free-form note |
 | E | tags | No | Optional comma-separated tags |
-| F | source | No | Optional manual source label |
-| G | enabled | No | Optional row-level switch |
-| H | normalizedKey | No | Optional value written by the app later |
-| I | lastSyncedAt | No | Optional sync metadata written by the app later |
-| J | syncStatus | No | Optional sync status written by the app later |
+| F | enabled | No | Optional row-level switch |
+| G | normalizedKey | No | Optional value written by the app later |
+| H | lastSyncedAt | No | Optional sync metadata written by the app later |
+| I | syncStatus | No | Optional sync status written by the app later |
 
 Minimal MVP columns:
 

@@ -55,19 +55,44 @@ func TestAnyMatrixToStrings(t *testing.T) {
 }
 
 type fakeValuesClient struct {
-	rows [][]string
-	err  error
+	rows      [][]string
+	err       error
+	lastRange string
 }
 
-func (f fakeValuesClient) FetchValues(ctx context.Context, spreadsheetID, valueRange string) ([][]string, error) {
+func (f *fakeValuesClient) FetchValues(ctx context.Context, spreadsheetID, valueRange string) ([][]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	f.lastRange = valueRange
 	if f.err != nil {
 		return nil, f.err
 	}
 
 	return f.rows, nil
+}
+
+func TestAdapterDefaultsRangeToSheetAToF(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeValuesClient{
+		rows: [][]string{
+			{"word", "translations", "contexts", "note", "tags", "enabled"},
+			{"lean", "наклонять", "", "", "", "true"},
+		},
+	}
+	adapter := NewAdapter(AdapterOptions{
+		SpreadsheetID: "sheet-1",
+		SheetName:     "Vocabulary",
+		ValuesClient:  client,
+	})
+
+	if _, err := adapter.Sync(context.Background()); err != nil {
+		t.Fatalf("Sync() error = %v", err)
+	}
+	if client.lastRange != "Vocabulary!A:F" {
+		t.Fatalf("lastRange = %q, want %q", client.lastRange, "Vocabulary!A:F")
+	}
 }
 
 func TestAdapterSyncParsesRowsFromSheet(t *testing.T) {
@@ -77,7 +102,7 @@ func TestAdapterSyncParsesRowsFromSheet(t *testing.T) {
 		SpreadsheetID: "sheet-1",
 		SheetName:     "Vocabulary",
 		Range:         "Vocabulary!A:F",
-		ValuesClient: fakeValuesClient{
+		ValuesClient: &fakeValuesClient{
 			rows: [][]string{
 				{"word", "translations", "contexts", "note", "tags", "enabled"},
 				{"assessing", "оценивание", "Assessing the risks took longer than we expected.", "", "", "TRUE"},
@@ -107,7 +132,7 @@ func TestAdapterSyncReportsRowParseErrors(t *testing.T) {
 		SpreadsheetID: "sheet-1",
 		SheetName:     "Vocabulary",
 		Range:         "Vocabulary!A:F",
-		ValuesClient: fakeValuesClient{
+		ValuesClient: &fakeValuesClient{
 			rows: [][]string{
 				{"word", "translations", "contexts", "note", "tags", "enabled"},
 				{"assessing", "оценивание", "", "", "", "TRUE"},
@@ -130,7 +155,7 @@ func TestAdapterSyncRequiresSpreadsheetID(t *testing.T) {
 	t.Parallel()
 
 	adapter := NewAdapter(AdapterOptions{
-		ValuesClient: fakeValuesClient{},
+		ValuesClient: &fakeValuesClient{},
 	})
 
 	if _, err := adapter.Sync(context.Background()); err == nil {
@@ -155,7 +180,7 @@ func TestAdapterSyncPropagatesFetchError(t *testing.T) {
 
 	adapter := NewAdapter(AdapterOptions{
 		SpreadsheetID: "sheet-1",
-		ValuesClient: fakeValuesClient{
+		ValuesClient: &fakeValuesClient{
 			err: errors.New("api unavailable"),
 		},
 	})
