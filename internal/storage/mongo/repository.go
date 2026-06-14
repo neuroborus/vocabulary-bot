@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neuroborus/vocabulary-bot/internal/source/pocketbook"
@@ -82,6 +83,31 @@ func (r *VocabularyRepository) FindByLookupKeys(ctx context.Context, lookupKeys 
 	}
 
 	return items, nil
+}
+
+func (r *VocabularyRepository) FindBySheetRow(ctx context.Context, sheetName string, rowNumber int) (vocabulary.Item, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return vocabulary.Item{}, false, err
+	}
+
+	var item vocabulary.Item
+	err := r.collection.FindOne(ctx, bson.M{
+		"anchors": bson.M{
+			"$elemMatch": bson.M{
+				"source":    vocabulary.SourceGoogleSheet,
+				"sheetName": strings.TrimSpace(sheetName),
+				"rowNumber": rowNumber,
+			},
+		},
+	}).Decode(&item)
+	if errors.Is(err, mongodriver.ErrNoDocuments) {
+		return vocabulary.Item{}, false, nil
+	}
+	if err != nil {
+		return vocabulary.Item{}, false, err
+	}
+
+	return item, true, nil
 }
 
 func (r *VocabularyRepository) Create(ctx context.Context, item vocabulary.Item) error {

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 )
 
 type Config struct {
@@ -14,9 +16,15 @@ type Config struct {
 	NotificationsEnabled bool
 	MongoDB              MongoDBConfig
 	Telegram             TelegramConfig
+	Review               ReviewConfig
 	Schedule             ScheduleConfig
 	PocketBook           PocketBookConfig
 	GoogleSheet          GoogleSheetConfig
+}
+
+type ReviewConfig struct {
+	DocumentPushFactor float64
+	BookPushFactor     float64
 }
 
 type ScheduleConfig struct {
@@ -74,7 +82,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		AppEnv:               getenv("APP_ENV", "local"),
-		LogPath:              getenv("LOG_PATH", "logs/vocabulary.log"),
+		LogPath:              getenv("LOG_PATH", logging.DefaultLogPath()),
 		SyncEnabled:          getenvBool("SYNC_ENABLED", true),
 		NotificationsEnabled: getenvBool("NOTIFICATIONS_ENABLED", true),
 		MongoDB: MongoDBConfig{
@@ -88,6 +96,10 @@ func Load() (Config, error) {
 			APIBaseURL:                getenv("TELEGRAM_API_BASE_URL", ""),
 			PollingEnabled:            getenvBool("TELEGRAM_POLLING_ENABLED", true),
 			ReviewSpoilerTranslations: getenvBool("TELEGRAM_REVIEW_SPOILER_TRANSLATIONS", true),
+		},
+		Review: ReviewConfig{
+			DocumentPushFactor: getenvFloat("REVIEW_DOCUMENT_PUSH_FACTOR", 0.7),
+			BookPushFactor:     getenvFloat("REVIEW_BOOK_PUSH_FACTOR", 1),
 		},
 		Schedule: ScheduleConfig{
 			Timezone:     getenv("SCHEDULE_TIMEZONE", ""),
@@ -169,6 +181,20 @@ func getenvInt(key string, fallback int) int {
 
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
+		return fallback
+	}
+
+	return parsed
+}
+
+func getenvFloat(key string, fallback float64) float64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || parsed <= 0 {
 		return fallback
 	}
 

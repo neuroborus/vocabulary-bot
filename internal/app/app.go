@@ -9,6 +9,7 @@ import (
 
 	"github.com/neuroborus/vocabulary-bot/internal/config"
 	"github.com/neuroborus/vocabulary-bot/internal/logging"
+	"github.com/neuroborus/vocabulary-bot/internal/review"
 	"github.com/neuroborus/vocabulary-bot/internal/schedule"
 	"github.com/neuroborus/vocabulary-bot/internal/source"
 	"github.com/neuroborus/vocabulary-bot/internal/source/pocketbook"
@@ -174,9 +175,13 @@ func runTelegram(
 		AllowedUserID:             cfg.Telegram.AllowedUserID,
 		ReviewChatID:              cfg.Telegram.TargetChatID,
 		ReviewSpoilerTranslations: cfg.Telegram.ReviewSpoilerTranslations,
-		LogPath:                   cfg.LogPath,
-		SyncEnabled:               cfg.SyncEnabled,
-		NotificationsEnabled:      cfg.NotificationsEnabled,
+		ReviewSelection: review.SelectionOptions{
+			DocumentPushFactor: cfg.Review.DocumentPushFactor,
+			BookPushFactor:     cfg.Review.BookPushFactor,
+		},
+		LogPath:              cfg.LogPath,
+		SyncEnabled:          cfg.SyncEnabled,
+		NotificationsEnabled: cfg.NotificationsEnabled,
 	})
 	bot := telegram.NewBot(client, handler, logger)
 

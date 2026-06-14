@@ -32,6 +32,28 @@ func TestFormatReviewReminderShowsSourceLabel(t *testing.T) {
 	}
 }
 
+func TestFormatReviewReminderShowsSpreadsheetSourceLabel(t *testing.T) {
+	t.Parallel()
+
+	text := formatReviewReminder(vocabulary.Item{
+		DisplayWord:  "assessing",
+		Translations: []string{"оценивание", "создание"},
+		Contexts:     []string{"Assessing the risks took longer than we expected"},
+		Anchors: []vocabulary.SourceAnchor{{
+			Source:    vocabulary.SourceGoogleSheet,
+			SheetName: "Vocabulary",
+			RowNumber: 2,
+		}},
+	}, false)
+
+	if !strings.Contains(text, "Vocabulary") {
+		t.Fatalf("spreadsheet source label missing: %q", text)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(text), "Vocabulary</i>") {
+		t.Fatalf("spreadsheet source label should be at the bottom: %q", text)
+	}
+}
+
 func TestFormatReviewReminderWrapsTranslationsInSpoiler(t *testing.T) {
 	t.Parallel()
 

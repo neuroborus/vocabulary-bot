@@ -75,8 +75,6 @@ func (s *Service) Run(ctx context.Context) (Summary, error) {
 			sourceSummary.Details = detailsProvider.SyncDetails()
 		}
 
-		summary.Sources = append(summary.Sources, sourceSummary)
-
 		for _, draft := range drafts {
 			outcome, err := s.vocabulary.MergeDraft(ctx, draft)
 			if errors.Is(err, vocabulary.ErrAmbiguousMatch) {
@@ -92,6 +90,10 @@ func (s *Service) Run(ctx context.Context) (Summary, error) {
 			if err != nil {
 				return summary, fmt.Errorf("merge %s draft %q: %w", adapter.Name(), draft.RawWord, err)
 			}
+			if outcome.Skipped {
+				sourceSummary.Details.RowsSkippedUnchanged++
+				continue
+			}
 
 			summary.DraftsProcessed++
 			if outcome.Created {
@@ -101,6 +103,8 @@ func (s *Service) Run(ctx context.Context) (Summary, error) {
 				summary.Updated++
 			}
 		}
+
+		summary.Sources = append(summary.Sources, sourceSummary)
 	}
 
 	return summary, nil

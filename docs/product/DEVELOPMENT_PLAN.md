@@ -735,8 +735,10 @@ All logs should be written to a file.
 Suggested path:
 
 ```text
-logs/vocabulary.log
+$TMPDIR/vocabulary-bot/logs/vocabulary.log
 ```
+
+Override with `LOG_PATH` when needed.
 
 Logs should include:
 
@@ -769,7 +771,7 @@ Once per week, the system should:
 Recommended behavior:
 
 ```text
-- If sending logs succeeds: truncate logs/vocabulary.log to free disk space.
+- If sending logs succeeds: truncate the active `LOG_PATH` file to free disk space.
 - If sending logs fails: keep the file and retry on the next scheduled run.
 - Do not keep a second local copy; Telegram is the off-site archive.
 ```
@@ -777,8 +779,8 @@ Recommended behavior:
 Weekly job:
 
 ```text
-1. Send logs/vocabulary.log to TELEGRAM_ALLOWED_USER_ID.
-2. If Telegram delivery succeeds, truncate logs/vocabulary.log.
+1. Send the active `LOG_PATH` file to TELEGRAM_ALLOWED_USER_ID.
+2. If Telegram delivery succeeds, truncate `LOG_PATH`.
 3. If Telegram delivery fails, keep the active log and retry on the next scheduled run.
 ```
 

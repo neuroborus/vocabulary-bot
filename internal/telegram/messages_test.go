@@ -88,3 +88,23 @@ func TestFormatSyncSummaryIncludesBookContextStats(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatSyncSummaryIncludesSkippedSpreadsheetRows(t *testing.T) {
+	t.Parallel()
+
+	text := formatSyncSummary(syncer.Summary{
+		Sources: []syncer.SourceSummary{
+			{
+				Name:   "google-sheet",
+				Drafts: 279,
+				Details: source.Details{
+					RowsSkippedUnchanged: 275,
+				},
+			},
+		},
+	})
+
+	if !strings.Contains(text, "rows skipped (unchanged): 275") {
+		t.Fatalf("sync summary missing skipped rows: %q", text)
+	}
+}

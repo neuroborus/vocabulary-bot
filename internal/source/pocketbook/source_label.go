@@ -1,12 +1,14 @@
 package pocketbook
 
-import "strings"
+import (
+	"strings"
 
-const documentSourceLabel = "Document"
+	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
+)
 
 func pocketbookSourceLabel(book Book) string {
 	if isDocumentBook(book) {
-		return documentSourceLabel
+		return vocabulary.DocumentSourceLabel
 	}
 
 	title := strings.TrimSpace(firstNonEmpty(book.Title, book.Metadata.Title))

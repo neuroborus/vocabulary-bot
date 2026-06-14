@@ -30,6 +30,7 @@ type CommandHandler struct {
 	logPath                   string
 	syncEnabled               bool
 	notificationsEnabled      bool
+	reviewSelection           review.SelectionOptions
 	now                       func() time.Time
 }
 
@@ -44,6 +45,7 @@ type CommandHandlerOptions struct {
 	LogPath                   string
 	SyncEnabled               bool
 	NotificationsEnabled      bool
+	ReviewSelection           review.SelectionOptions
 	Now                       func() time.Time
 }
 
@@ -66,6 +68,7 @@ func NewCommandHandler(options CommandHandlerOptions) *CommandHandler {
 		logPath:                   options.LogPath,
 		syncEnabled:               options.SyncEnabled,
 		notificationsEnabled:      options.NotificationsEnabled,
+		reviewSelection:           options.ReviewSelection,
 		now:                       options.Now,
 	}
 }
@@ -257,7 +260,7 @@ func (h *CommandHandler) pushReviewWord(ctx context.Context, commandChatID int64
 		return nil, 0, err
 	}
 
-	item, ok := review.SelectNext(items, h.now())
+	item, ok := review.SelectNext(items, h.now(), h.reviewSelection)
 	if !ok {
 		return nil, 0, nil
 	}

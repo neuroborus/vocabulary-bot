@@ -1,6 +1,10 @@
 package pocketbook
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
+)
 
 func TestPocketbookSourceLabelForBook(t *testing.T) {
 	t.Parallel()
@@ -29,8 +33,8 @@ func TestPocketbookSourceLabelForDocument(t *testing.T) {
 			Authors: "Someone",
 		},
 	})
-	if label != documentSourceLabel {
-		t.Fatalf("label = %q, want %q", label, documentSourceLabel)
+	if label != vocabulary.DocumentSourceLabel {
+		t.Fatalf("label = %q, want %q", label, vocabulary.DocumentSourceLabel)
 	}
 }
 

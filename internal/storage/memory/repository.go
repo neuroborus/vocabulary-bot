@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
@@ -50,6 +51,34 @@ func (r *VocabularyRepository) FindByLookupKeys(ctx context.Context, lookupKeys 
 	}
 
 	return matches, nil
+}
+
+func (r *VocabularyRepository) FindBySheetRow(ctx context.Context, sheetName string, rowNumber int) (vocabulary.Item, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return vocabulary.Item{}, false, err
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	sheetName = strings.TrimSpace(sheetName)
+	for _, item := range r.items {
+		for _, anchor := range item.Anchors {
+			if anchor.Source != vocabulary.SourceGoogleSheet {
+				continue
+			}
+			if anchor.RowNumber != rowNumber {
+				continue
+			}
+			if strings.TrimSpace(anchor.SheetName) != sheetName {
+				continue
+			}
+
+			return cloneItem(item), true, nil
+		}
+	}
+
+	return vocabulary.Item{}, false, nil
 }
 
 func (r *VocabularyRepository) Create(ctx context.Context, item vocabulary.Item) error {

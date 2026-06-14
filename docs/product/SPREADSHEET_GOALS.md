@@ -578,9 +578,12 @@ Recommended sync flow:
 2. Map column names to indices.
 3. Read all non-empty rows.
 4. Convert rows to VocabularyDraft objects.
-5. Merge into MongoDB.
-6. Optionally write sync status back.
+5. Skip rows whose sheet anchor fingerprint is unchanged since the last sync.
+6. Merge changed or new rows into MongoDB.
+7. Optionally write sync status back.
 ```
+
+Unchanged-row skip uses `sheetName + rowNumber` plus a stored `rowFingerprint` on the sheet anchor (`word`, `translations`, `contexts`, `note`, `tags`). The full range is still read every sync so edits to existing rows are detected.
 
 Column names should be case-insensitive:
 
@@ -783,7 +786,7 @@ All logs must be saved to a file.
 Recommended path:
 
 ```text
-logs/vocabulary.log
+$TMPDIR/vocabulary-bot/logs/vocabulary.log
 ```
 
 Weekly behavior:

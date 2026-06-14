@@ -6,9 +6,16 @@ import (
 	"path/filepath"
 )
 
+const logAppDirName = "vocabulary-bot"
+
+// DefaultLogPath returns the writable default log file under the system temp dir.
+func DefaultLogPath() string {
+	return filepath.Join(os.TempDir(), logAppDirName, "logs", "vocabulary.log")
+}
+
 func NewFileLogger(path string) (*slog.Logger, func() error, error) {
 	if path == "" {
-		path = "logs/vocabulary.log"
+		path = DefaultLogPath()
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

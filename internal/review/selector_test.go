@@ -138,6 +138,138 @@ func TestSelectNextSkipsDisabledWords(t *testing.T) {
 	}
 }
 
+func TestSelectNextDeprioritizesDocumentWords(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	future := now.Add(48 * time.Hour)
+	opts := SelectionOptions{DocumentPushFactor: 0.7, BookPushFactor: 1}
+
+	items := []vocabulary.Item{
+		{
+			NormalizedKey: "spreadsheet-hard",
+			Enabled:       true,
+			Review: vocabulary.ReviewState{
+				Enabled:   true,
+				DueAt:     &future,
+				HardCount: 10,
+			},
+			Anchors: []vocabulary.SourceAnchor{{
+				Source: vocabulary.SourceGoogleSheet,
+			}},
+			CreatedAt: now.Add(-24 * time.Hour),
+		},
+		{
+			NormalizedKey: "book-moderate",
+			Enabled:       true,
+			Review: vocabulary.ReviewState{
+				Enabled:   true,
+				DueAt:     &future,
+				HardCount: 8,
+			},
+			Anchors: []vocabulary.SourceAnchor{{
+				Source:      vocabulary.SourcePocketBook,
+				SourceLabel: "Necromancer — Fred Saberhagen",
+			}},
+			CreatedAt: now.Add(-72 * time.Hour),
+		},
+	}
+
+	selected, ok := SelectNext(items, now, opts)
+	if !ok {
+		t.Fatal("SelectNext() = false, want true")
+	}
+	if selected.NormalizedKey != "book-moderate" {
+		t.Fatalf("selected = %q, want book-moderate", selected.NormalizedKey)
+	}
+}
+
+func TestSelectNextAppliesBookPushFactor(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	future := now.Add(48 * time.Hour)
+	opts := SelectionOptions{DocumentPushFactor: 1, BookPushFactor: 0.7}
+
+	items := []vocabulary.Item{
+		{
+			NormalizedKey: "book-hard",
+			Enabled:       true,
+			Review: vocabulary.ReviewState{
+				Enabled:   true,
+				DueAt:     &future,
+				HardCount: 10,
+			},
+			Anchors: []vocabulary.SourceAnchor{{
+				Source:      vocabulary.SourcePocketBook,
+				SourceLabel: "Necromancer — Fred Saberhagen",
+			}},
+			CreatedAt: now.Add(-24 * time.Hour),
+		},
+		{
+			NormalizedKey: "sheet-moderate",
+			Enabled:       true,
+			Review: vocabulary.ReviewState{
+				Enabled:   true,
+				DueAt:     &future,
+				HardCount: 8,
+			},
+			Anchors: []vocabulary.SourceAnchor{{
+				Source: vocabulary.SourceGoogleSheet,
+			}},
+			CreatedAt: now.Add(-72 * time.Hour),
+		},
+	}
+
+	selected, ok := SelectNext(items, now, opts)
+	if !ok {
+		t.Fatal("SelectNext() = false, want true")
+	}
+	if selected.NormalizedKey != "sheet-moderate" {
+		t.Fatalf("selected = %q, want sheet-moderate", selected.NormalizedKey)
+	}
+}
+
+func TestSelectNextPrefersSpreadsheetWithLowBookFactorAndZeroDifficulty(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	opts := SelectionOptions{DocumentPushFactor: 1, BookPushFactor: 0.1}
+
+	items := []vocabulary.Item{
+		{
+			NormalizedKey: "book-reviewed",
+			Enabled:       true,
+			Review: vocabulary.ReviewState{
+				Enabled:   true,
+				HardCount: 1,
+			},
+			Anchors: []vocabulary.SourceAnchor{{
+				Source:      vocabulary.SourcePocketBook,
+				SourceLabel: "Necromancer — Fred Saberhagen",
+			}},
+			CreatedAt: now.Add(-24 * time.Hour),
+		},
+		{
+			NormalizedKey: "sheet-fresh",
+			Enabled:       true,
+			Review:        vocabulary.ReviewState{Enabled: true},
+			Anchors: []vocabulary.SourceAnchor{{
+				Source: vocabulary.SourceGoogleSheet,
+			}},
+			CreatedAt: now.Add(-72 * time.Hour),
+		},
+	}
+
+	selected, ok := SelectNext(items, now, opts)
+	if !ok {
+		t.Fatal("SelectNext() = false, want true")
+	}
+	if selected.NormalizedKey != "sheet-fresh" {
+		t.Fatalf("selected = %q, want sheet-fresh", selected.NormalizedKey)
+	}
+}
+
 func TestDifficultyScore(t *testing.T) {
 	t.Parallel()
 

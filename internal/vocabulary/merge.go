@@ -23,6 +23,7 @@ type MergeOutcome struct {
 	LookupKeys    []string
 	Created       bool
 	Updated       bool
+	Skipped       bool
 	Ambiguous     bool
 }
 
@@ -56,6 +57,33 @@ func (s *Service) MergeDraft(ctx context.Context, draft Draft) (MergeOutcome, er
 	}
 
 	now := s.now().UTC()
+
+	if draft.Source == SourceGoogleSheet && draft.Anchor.RowNumber > 0 {
+		item, found, err := s.repository.FindBySheetRow(ctx, draft.Anchor.SheetName, draft.Anchor.RowNumber)
+		if err != nil {
+			return MergeOutcome{}, fmt.Errorf("find sheet row anchor: %w", err)
+		}
+		if found {
+			if SheetRowUnchanged(item, draft) {
+				return MergeOutcome{
+					NormalizedKey: item.NormalizedKey,
+					LookupKeys:    append([]string(nil), item.LookupKeys...),
+					Skipped:       true,
+				}, nil
+			}
+
+			MergeIntoItem(&item, draft, now)
+			if err := s.repository.Update(ctx, item); err != nil {
+				return MergeOutcome{}, fmt.Errorf("update vocabulary item: %w", err)
+			}
+
+			return MergeOutcome{
+				NormalizedKey: item.NormalizedKey,
+				LookupKeys:    item.LookupKeys,
+				Updated:       true,
+			}, nil
+		}
+	}
 
 	if len(matches) == 0 {
 		item, err := NewItemFromDraft(draft, now)
@@ -296,6 +324,9 @@ func normalizeAnchor(draft Draft, now time.Time) SourceAnchor {
 	if anchor.LastSeenAt.IsZero() {
 		anchor.LastSeenAt = now
 	}
+	if anchor.Source == SourceGoogleSheet {
+		anchor.RowFingerprint = DraftFingerprint(draft)
+	}
 
 	return anchor
 }
@@ -317,6 +348,9 @@ func mergeAnchor(item *Item, incoming SourceAnchor, now time.Time) {
 			}
 			if incoming.Author != "" {
 				item.Anchors[index].Author = incoming.Author
+			}
+			if incoming.RowFingerprint != "" {
+				item.Anchors[index].RowFingerprint = incoming.RowFingerprint
 			}
 			return
 		}

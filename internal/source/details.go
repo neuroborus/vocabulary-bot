@@ -4,6 +4,7 @@ package source
 type Details struct {
 	BookContextSkippedStored int
 	BookContextEnriched      int
+	RowsSkippedUnchanged     int
 }
 
 // DetailsProvider is implemented by adapters that expose post-sync counters.

@@ -71,6 +71,10 @@ func formatSyncSummary(summary syncer.Summary) string {
 				builder.WriteString("\n  book context enriched: ")
 				builder.WriteString(fmt.Sprintf("%d", source.Details.BookContextEnriched))
 			}
+			if source.Details.RowsSkippedUnchanged > 0 {
+				builder.WriteString("\n  rows skipped (unchanged): ")
+				builder.WriteString(fmt.Sprintf("%d", source.Details.RowsSkippedUnchanged))
+			}
 		}
 	}
 
