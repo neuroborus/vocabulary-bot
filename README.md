@@ -38,6 +38,15 @@ make run
 
 Runtime code uses the official MongoDB Go driver when `MONGODB_URI` is configured. Most tests use fake HTTP servers and in-memory storage. MongoDB storage tests connect to `MONGODB_URI` or `mongodb://127.0.0.1:27017` and skip when MongoDB is unavailable.
 
+## Deploy
+
+Production deploy uses a small Alpine-based Docker image and GitHub Actions over SSH. See [deploy/README.md](deploy/README.md) for server setup, required secret `DEPLOY_SSH`, variable `DEPLOY_HOST`, and manual operations.
+
+```bash
+docker build -t vocabulary-bot:latest .
+docker compose up -d
+```
+
 ## Storage
 
 If `MONGODB_URI` is set, the app uses MongoDB:

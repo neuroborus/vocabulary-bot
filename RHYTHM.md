@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- Added lightweight CI/CD: GitHub Actions `CI` workflow (fmt/test/vet/build), `Deploy` workflow (Docker image over SSH to Ubuntu), multi-stage Alpine Dockerfile, and `docker-compose.yml` with a 192m memory limit.
 - Google Sheets sync now skips unchanged rows on repeat syncs using `sheetName + rowNumber` anchor fingerprints (`rowFingerprint` on the sheet anchor); full range is still fetched, but unchanged rows avoid Mongo writes and show `rows skipped (unchanged)` in `/sync`.
 - Implemented Google Sheets source sync: service-account auth from `GOOGLE_SERVICE_ACCOUNT_JSON` (raw JSON or base64), `spreadsheets.values.get` for `GOOGLE_SHEET_RANGE`, row parsing into `vocabulary.Draft`, and row-level error logging without aborting the whole source; sentence-style rows with commas in `word` keep the whole `translations` cell intact.
 - Documented the recommended manual Google Sheets import template `word | translations | contexts | note | tags | enabled`, including how optional `note`, `tags`, and `enabled` cells are parsed and when to leave them empty.

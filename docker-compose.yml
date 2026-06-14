@@ -1,0 +1,10 @@
+services:
+  vocabulary-bot:
+    image: vocabulary-bot:latest
+    container_name: vocabulary-bot
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    mem_limit: 192m
+    cpus: "0.50"

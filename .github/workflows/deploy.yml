@@ -1,0 +1,118 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vocabulary-bot
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Vet
+        run: go vet ./...
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t vocabulary-bot:latest .
+
+      - name: Save image archive
+        run: docker save vocabulary-bot:latest | gzip > vocabulary-bot-image.tar.gz
+
+      - name: Render production .env
+        run: bash deploy/render-env.sh .env.deploy
+        env:
+          APP_ENV: ${{ vars.APP_ENV }}
+          SYNC_ENABLED: ${{ vars.SYNC_ENABLED }}
+          NOTIFICATIONS_ENABLED: ${{ vars.NOTIFICATIONS_ENABLED }}
+          MONGODB_DB_NAME: ${{ vars.MONGODB_DB_NAME }}
+          TELEGRAM_ALLOWED_USER_ID: ${{ vars.TELEGRAM_ALLOWED_USER_ID }}
+          TELEGRAM_TARGET_CHAT_ID: ${{ vars.TELEGRAM_TARGET_CHAT_ID }}
+          REVIEW_DOCUMENT_PUSH_FACTOR: ${{ vars.REVIEW_DOCUMENT_PUSH_FACTOR }}
+          REVIEW_BOOK_PUSH_FACTOR: ${{ vars.REVIEW_BOOK_PUSH_FACTOR }}
+          AUTO_SYNC_CRON: ${{ vars.AUTO_SYNC_CRON }}
+          AUTO_PUSH_CRON: ${{ vars.AUTO_PUSH_CRON }}
+          AUTO_LOGS_CRON: ${{ vars.AUTO_LOGS_CRON }}
+          POCKETBOOK_SYNC_ENABLED: ${{ vars.POCKETBOOK_SYNC_ENABLED }}
+          POCKETBOOK_EMAIL: ${{ vars.POCKETBOOK_EMAIL }}
+          GOOGLE_SHEET_SYNC_ENABLED: ${{ vars.GOOGLE_SHEET_SYNC_ENABLED }}
+          GOOGLE_SPREADSHEET_ID: ${{ vars.GOOGLE_SPREADSHEET_ID }}
+          GOOGLE_SHEET_NAME: ${{ vars.GOOGLE_SHEET_NAME }}
+          GOOGLE_SHEET_RANGE: ${{ vars.GOOGLE_SHEET_RANGE }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          POCKETBOOK_PASSWORD: ${{ secrets.POCKETBOOK_PASSWORD }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH: ${{ secrets.DEPLOY_SSH }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_SSH}" ] || [ -z "${DEPLOY_HOST}" ]; then
+            echo "DEPLOY_SSH secret and DEPLOY_HOST variable are required"
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          host="${DEPLOY_HOST#*@}"
+          ssh-keyscan -H "${host}" >> ~/.ssh/known_hosts
+
+      - name: Upload compose file and env
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          target_dir="${DEPLOY_PATH:-/opt/vocabulary-bot}"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${DEPLOY_HOST}" "mkdir -p '${target_dir}'"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes docker-compose.yml "${DEPLOY_HOST}:${target_dir}/docker-compose.yml"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes .env.deploy "${DEPLOY_HOST}:${target_dir}/.env"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${DEPLOY_HOST}" "chmod 600 '${target_dir}/.env'"
+
+      - name: Deploy image and restart service
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          target_dir="${DEPLOY_PATH:-/opt/vocabulary-bot}"
+
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes vocabulary-bot-image.tar.gz "${DEPLOY_HOST}:/tmp/vocabulary-bot-image.tar.gz"
+
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${DEPLOY_HOST}" bash -s <<EOF
+          set -euo pipefail
+          gunzip -c /tmp/vocabulary-bot-image.tar.gz | docker load
+          rm -f /tmp/vocabulary-bot-image.tar.gz
+          cd '${target_dir}'
+          docker compose up -d --remove-orphans
+          docker image prune -f
+          EOF

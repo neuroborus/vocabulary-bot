@@ -1,0 +1,17 @@
+.git
+.github
+.agents
+docs
+test
+logs
+bin
+tmp
+coverage.out
+.env
+.env.*
+!.env.example
+*.md
+Vocabulary pool*
+pocketbook-session*.json
+cmd/pocketbook-dump-note
+cmd/pocketbook-list-books
