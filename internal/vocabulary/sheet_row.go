@@ -41,14 +41,14 @@ func (s *Service) applySheetRowUpdate(ctx context.Context, item Item, draft Draf
 	}
 
 	if len(otherItems) == 1 {
-		target := otherItems[0]
-		if err := s.reassignSheetRow(ctx, &item, target, draft, oldSnapshot, anchorIndex, now); err != nil {
+		target, err := s.reassignSheetRow(ctx, &item, otherItems[0], draft, oldSnapshot, anchorIndex, now)
+		if err != nil {
 			return Item{}, MergeOutcome{}, err
 		}
 
-		return item, MergeOutcome{
-			NormalizedKey: item.NormalizedKey,
-			LookupKeys:    append([]string(nil), item.LookupKeys...),
+		return target, MergeOutcome{
+			NormalizedKey: target.NormalizedKey,
+			LookupKeys:    append([]string(nil), target.LookupKeys...),
 			Updated:       true,
 		}, nil
 	}
@@ -80,15 +80,19 @@ func (s *Service) reassignSheetRow(
 	oldSnapshot SheetRowSnapshot,
 	anchorIndex int,
 	now time.Time,
-) error {
+) (Item, error) {
 	previousSourceKey := source.NormalizedKey
 	previousTargetKey := target.NormalizedKey
 
 	subtractSheetContribution(source, oldSnapshot)
 	source.Anchors = removeAnchorAt(source.Anchors, anchorIndex)
 	rebuildItemLookupState(source)
-	if err := s.saveItem(ctx, *source, previousSourceKey); err != nil {
-		return fmt.Errorf("update source item after sheet row move: %w", err)
+	if itemIsEmptyAfterSheetRemoval(*source) {
+		if err := s.repository.Delete(ctx, previousSourceKey); err != nil {
+			return Item{}, fmt.Errorf("delete emptied source item after sheet row move: %w", err)
+		}
+	} else if err := s.saveItem(ctx, *source, previousSourceKey); err != nil {
+		return Item{}, fmt.Errorf("update source item after sheet row move: %w", err)
 	}
 
 	MergeIntoItem(&target, draft, now)
@@ -100,13 +104,20 @@ func (s *Service) reassignSheetRow(
 		anchor.RowSnapshot = sheetRowSnapshotFromDraft(draft)
 		target.Anchors = append(target.Anchors, anchor)
 	}
+	if sheetRowWordChanged(oldSnapshot, draft) {
+		target.DisplayWord = strings.TrimSpace(draft.RawWord)
+	}
 	rebuildItemLookupState(&target)
 
 	if err := s.saveItem(ctx, target, previousTargetKey); err != nil {
-		return fmt.Errorf("update target item after sheet row move: %w", err)
+		return Item{}, fmt.Errorf("update target item after sheet row move: %w", err)
 	}
 
-	return nil
+	return target, nil
+}
+
+func itemIsEmptyAfterSheetRemoval(item Item) bool {
+	return len(item.Anchors) == 0 && len(item.Forms) == 0 && len(item.LookupKeys) == 0
 }
 
 func (s *Service) saveItem(ctx context.Context, item Item, previousNormalizedKey string) error {

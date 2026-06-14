@@ -128,6 +128,88 @@ func TestMergeDraftReplacesSheetRowTranslationsWithoutKeepingRemovedValues(t *te
 	}
 }
 
+func TestMergeDraftReassignsSheetRowToExistingItem(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repository := memory.NewVocabularyRepository()
+	service := vocabulary.NewService(repository, func() time.Time {
+		return time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	})
+
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:       vocabulary.SourceGoogleSheet,
+		RawWord:      "gauge",
+		Translations: []string{"измерять"},
+		Anchor: vocabulary.SourceAnchor{
+			Source:    vocabulary.SourceGoogleSheet,
+			SheetName: "Vocabulary",
+			RowNumber: 10,
+		},
+	}); err != nil {
+		t.Fatalf("seed gauge merge: %v", err)
+	}
+
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:       vocabulary.SourceGoogleSheet,
+		RawWord:      "carve",
+		Translations: []string{"вырезать"},
+		Anchor: vocabulary.SourceAnchor{
+			Source:    vocabulary.SourceGoogleSheet,
+			SheetName: "Vocabulary",
+			RowNumber: 5,
+		},
+	}); err != nil {
+		t.Fatalf("seed carve merge: %v", err)
+	}
+
+	replacement := vocabulary.Draft{
+		Source:       vocabulary.SourceGoogleSheet,
+		RawWord:      "gauge",
+		Translations: []string{"калибровать"},
+		Anchor: vocabulary.SourceAnchor{
+			Source:    vocabulary.SourceGoogleSheet,
+			SheetName: "Vocabulary",
+			RowNumber: 5,
+		},
+	}
+	outcome, err := service.MergeDraft(ctx, replacement)
+	if err != nil {
+		t.Fatalf("replacement merge: %v", err)
+	}
+	if outcome.Skipped || !outcome.Updated {
+		t.Fatalf("outcome = %#v, want updated sheet row", outcome)
+	}
+	if outcome.NormalizedKey != "gauge" {
+		t.Fatalf("NormalizedKey = %q, want %q", outcome.NormalizedKey, "gauge")
+	}
+
+	items, err := repository.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+
+	item := items[0]
+	if item.DisplayWord != "gauge" {
+		t.Fatalf("DisplayWord = %q, want %q", item.DisplayWord, "gauge")
+	}
+	if len(item.Forms) != 1 || item.Forms[0].Value != "gauge" {
+		t.Fatalf("forms = %#v, want only gauge", item.Forms)
+	}
+	if containsValue(item.LookupKeys, "carve") {
+		t.Fatalf("lookup keys still contain carve: %#v", item.LookupKeys)
+	}
+	if len(item.Anchors) != 2 {
+		t.Fatalf("anchors = %d, want row 5 and row 10", len(item.Anchors))
+	}
+	if !containsValue(item.Translations, "измерять") || !containsValue(item.Translations, "калибровать") {
+		t.Fatalf("translations = %#v, want both gauge sheet rows", item.Translations)
+	}
+}
+
 func TestMergeDraftKeepsPocketBookDataWhenSheetRowChanges(t *testing.T) {
 	t.Parallel()
 

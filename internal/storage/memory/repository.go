@@ -133,6 +133,28 @@ func (r *VocabularyRepository) Replace(ctx context.Context, item vocabulary.Item
 	return nil
 }
 
+func (r *VocabularyRepository) Delete(ctx context.Context, normalizedKey string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	normalizedKey = strings.TrimSpace(normalizedKey)
+	if normalizedKey == "" {
+		return fmt.Errorf("normalized key is required")
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.items[normalizedKey]; !ok {
+		return fmt.Errorf("vocabulary item %q not found", normalizedKey)
+	}
+
+	delete(r.items, normalizedKey)
+
+	return nil
+}
+
 func (r *VocabularyRepository) List(ctx context.Context) ([]vocabulary.Item, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

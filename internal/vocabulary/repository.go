@@ -8,5 +8,6 @@ type Repository interface {
 	Create(ctx context.Context, item Item) error
 	Update(ctx context.Context, item Item) error
 	Replace(ctx context.Context, item Item, previousNormalizedKey string) error
+	Delete(ctx context.Context, normalizedKey string) error
 	List(ctx context.Context) ([]Item, error)
 }

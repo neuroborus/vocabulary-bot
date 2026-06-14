@@ -136,6 +136,32 @@ func TestVocabularyRepositoryUpdateMissingItem(t *testing.T) {
 	}
 }
 
+func TestVocabularyRepositoryDelete(t *testing.T) {
+	database, cleanup := setupTestDatabase(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	repository := NewVocabularyRepository(database)
+
+	now := time.Now().UTC()
+	item := sampleVocabularyItem(now)
+	if err := repository.Create(ctx, item); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if err := repository.Delete(ctx, item.NormalizedKey); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+
+	items, err := repository.List(ctx)
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("List() len = %d, want 0 after delete", len(items))
+	}
+}
+
 func TestVocabularyRepositoryEnsureIndexesEnforcesUniqueNormalizedKey(t *testing.T) {
 	database, cleanup := setupTestDatabase(t)
 	defer cleanup()
@@ -265,6 +291,9 @@ func TestRepositoryRespectsCancelledContext(t *testing.T) {
 	}
 	if err := repository.Update(ctx, sampleVocabularyItem(time.Now().UTC())); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Update() error = %v, want context.Canceled", err)
+	}
+	if err := repository.Delete(ctx, "decelerate"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Delete() error = %v, want context.Canceled", err)
 	}
 	if _, err := repository.FindByLookupKeys(ctx, []string{"decelerate"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("FindByLookupKeys() error = %v, want context.Canceled", err)
