@@ -28,7 +28,7 @@ type partOfSpeechDisplay struct {
 	Meanings []string
 }
 
-func formatReviewReminder(item vocabulary.Item) string {
+func formatReviewReminder(item vocabulary.Item, spoilerTranslations bool) string {
 	lexicon := parseLexiconDisplay(item.Translations, item.Contexts)
 
 	var builder strings.Builder
@@ -36,8 +36,36 @@ func formatReviewReminder(item vocabulary.Item) string {
 	builder.WriteString(escapeHTML(item.DisplayWord))
 	builder.WriteString("</b>")
 
+	if len(lexicon.Contexts) > 0 {
+		builder.WriteString("\n\n<b>Context</b>")
+		for _, contextValue := range lexicon.Contexts {
+			builder.WriteString("\n• ")
+			builder.WriteString(escapeHTML(contextValue))
+		}
+	}
+
+	translationSection := formatTranslationSection(item, lexicon)
+	if translationSection == "" {
+		return builder.String()
+	}
+
+	if spoilerTranslations {
+		builder.WriteString("\n\n<tg-spoiler>")
+		builder.WriteString(translationSection)
+		builder.WriteString("</tg-spoiler>")
+	} else {
+		builder.WriteString("\n\n")
+		builder.WriteString(translationSection)
+	}
+
+	return builder.String()
+}
+
+func formatTranslationSection(item vocabulary.Item, lexicon lexiconDisplay) string {
+	var builder strings.Builder
+
 	if lexicon.Transcription != "" {
-		builder.WriteString("\n<i>")
+		builder.WriteString("<i>")
 		builder.WriteString(escapeHTML("[" + lexicon.Transcription + "]"))
 		builder.WriteString("</i>")
 	}
@@ -68,15 +96,7 @@ func formatReviewReminder(item vocabulary.Item) string {
 		}
 	}
 
-	if len(lexicon.Contexts) > 0 {
-		builder.WriteString("\n\n<b>Context</b>")
-		for _, contextValue := range lexicon.Contexts {
-			builder.WriteString("\n• ")
-			builder.WriteString(escapeHTML(contextValue))
-		}
-	}
-
-	return builder.String()
+	return strings.TrimSpace(builder.String())
 }
 
 func visibleVariants(item vocabulary.Item) []string {

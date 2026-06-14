@@ -157,15 +157,16 @@ func runTelegram(
 		BaseURL:  cfg.Telegram.APIBaseURL,
 	})
 	handler := telegram.NewCommandHandler(telegram.CommandHandlerOptions{
-		Notifier:             client,
-		SyncRunner:           syncService,
-		Repository:           repository,
-		Logger:               logger,
-		AllowedUserID:        cfg.Telegram.AllowedUserID,
-		ReviewChatID:         cfg.Telegram.TargetChatID,
-		LogPath:              cfg.LogPath,
-		SyncEnabled:          cfg.SyncEnabled,
-		NotificationsEnabled: cfg.NotificationsEnabled,
+		Notifier:                  client,
+		SyncRunner:                syncService,
+		Repository:                repository,
+		Logger:                    logger,
+		AllowedUserID:             cfg.Telegram.AllowedUserID,
+		ReviewChatID:              cfg.Telegram.TargetChatID,
+		ReviewSpoilerTranslations: cfg.Telegram.ReviewSpoilerTranslations,
+		LogPath:                   cfg.LogPath,
+		SyncEnabled:               cfg.SyncEnabled,
+		NotificationsEnabled:      cfg.NotificationsEnabled,
 	})
 	bot := telegram.NewBot(client, handler, logger)
 

@@ -20,29 +20,31 @@ type SyncRunner interface {
 }
 
 type CommandHandler struct {
-	notifier             Notifier
-	syncRunner           SyncRunner
-	repository           vocabulary.Repository
-	logger               *slog.Logger
-	allowedUserID        int64
-	reviewChatID         int64
-	logPath              string
-	syncEnabled          bool
-	notificationsEnabled bool
-	now                  func() time.Time
+	notifier                  Notifier
+	syncRunner                SyncRunner
+	repository                vocabulary.Repository
+	logger                    *slog.Logger
+	allowedUserID             int64
+	reviewChatID              int64
+	reviewSpoilerTranslations bool
+	logPath                   string
+	syncEnabled               bool
+	notificationsEnabled      bool
+	now                       func() time.Time
 }
 
 type CommandHandlerOptions struct {
-	Notifier             Notifier
-	SyncRunner           SyncRunner
-	Repository           vocabulary.Repository
-	Logger               *slog.Logger
-	AllowedUserID        int64
-	ReviewChatID         int64
-	LogPath              string
-	SyncEnabled          bool
-	NotificationsEnabled bool
-	Now                  func() time.Time
+	Notifier                  Notifier
+	SyncRunner                SyncRunner
+	Repository                vocabulary.Repository
+	Logger                    *slog.Logger
+	AllowedUserID             int64
+	ReviewChatID              int64
+	ReviewSpoilerTranslations bool
+	LogPath                   string
+	SyncEnabled               bool
+	NotificationsEnabled      bool
+	Now                       func() time.Time
 }
 
 func NewCommandHandler(options CommandHandlerOptions) *CommandHandler {
@@ -54,16 +56,17 @@ func NewCommandHandler(options CommandHandlerOptions) *CommandHandler {
 	}
 
 	return &CommandHandler{
-		notifier:             options.Notifier,
-		syncRunner:           options.SyncRunner,
-		repository:           options.Repository,
-		logger:               options.Logger,
-		allowedUserID:        options.AllowedUserID,
-		reviewChatID:         options.ReviewChatID,
-		logPath:              options.LogPath,
-		syncEnabled:          options.SyncEnabled,
-		notificationsEnabled: options.NotificationsEnabled,
-		now:                  options.Now,
+		notifier:                  options.Notifier,
+		syncRunner:                options.SyncRunner,
+		repository:                options.Repository,
+		logger:                    options.Logger,
+		allowedUserID:             options.AllowedUserID,
+		reviewChatID:              options.ReviewChatID,
+		reviewSpoilerTranslations: options.ReviewSpoilerTranslations,
+		logPath:                   options.LogPath,
+		syncEnabled:               options.SyncEnabled,
+		notificationsEnabled:      options.NotificationsEnabled,
+		now:                       options.Now,
 	}
 }
 
@@ -217,7 +220,7 @@ func (h *CommandHandler) handlePush(ctx context.Context, commandChatID int64) er
 	if err := h.notifier.SendHTMLMessageWithKeyboard(
 		ctx,
 		deliveryChatID,
-		formatReviewReminder(item),
+		formatReviewReminder(item, h.reviewSpoilerTranslations),
 		reviewKeyboard(item.NormalizedKey),
 	); err != nil {
 		return h.sendHTMLMessage(ctx, commandChatID, formatError("Push failed", logging.SanitizeError(err)))

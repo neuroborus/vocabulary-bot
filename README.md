@@ -99,7 +99,7 @@ Minimal commands:
 /push       Manually send one review word with Easy/Hard/Remove buttons
 ```
 
-Only the configured `TELEGRAM_ALLOWED_USER_ID` may execute commands. Service notifications, including the startup message, are always sent to that user ID. Command responses are sent back to the chat where the command was sent. Review push cards go to `TELEGRAM_TARGET_CHAT_ID` when it is configured. `/turn_off` blocks `/sync` until `/turn_on` is used again; other manual commands still work.
+Only the configured `TELEGRAM_ALLOWED_USER_ID` may execute commands. Service notifications, including the startup message, are always sent to that user ID. Command responses are sent back to the chat where the command was sent. Review push cards go to `TELEGRAM_TARGET_CHAT_ID` when it is configured. Set `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS=false` to show translations openly on `/push` cards. `/turn_off` blocks `/sync` until `/turn_on` is used again; other manual commands still work.
 
 ## Main Rules Already Encoded
 
