@@ -22,7 +22,14 @@ type Adapter struct {
 	bookContextEnabled  bool
 	bookCache           *BookCache
 	bookContextResolver BookContextResolver
-	bookContextStats    bookContextStats
+	syncStats           syncStats
+}
+
+type syncStats struct {
+	bookContextStats
+	booksSkipped int
+	booksFailed  int
+	notesFailed  int
 }
 
 type bookContextStats struct {
@@ -97,13 +104,16 @@ func (a *Adapter) Name() string {
 
 func (a *Adapter) SyncDetails() source.Details {
 	return source.Details{
-		BookContextSkippedStored: a.bookContextStats.skippedStored,
-		BookContextEnriched:      a.bookContextStats.enriched,
+		BookContextSkippedStored: a.syncStats.skippedStored,
+		BookContextEnriched:      a.syncStats.enriched,
+		BooksSkipped:             a.syncStats.booksSkipped,
+		BooksFailed:              a.syncStats.booksFailed,
+		NotesFailed:              a.syncStats.notesFailed,
 	}
 }
 
 func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
-	a.bookContextStats = bookContextStats{}
+	a.syncStats = syncStats{}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -121,6 +131,7 @@ func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
 				slog.String("book_id", book.ID),
 				slog.String("title", book.Title),
 			)
+			a.syncStats.booksSkipped++
 			continue
 		}
 
@@ -132,6 +143,7 @@ func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
 				slog.String("title", book.Title),
 				slog.String("error", logging.SanitizeError(err)),
 			)
+			a.syncStats.booksFailed++
 			continue
 		}
 
@@ -147,7 +159,8 @@ func (a *Adapter) syncBook(ctx context.Context, book Book) ([]vocabulary.Draft, 
 		return nil, fmt.Errorf("list notes: %w", err)
 	}
 
-	notes := fetchBookNotes(ctx, a.client, book, noteIDs, a.logger)
+	notes, notesFailed := fetchBookNotes(ctx, a.client, book, noteIDs, a.logger)
+	a.syncStats.notesFailed += notesFailed
 	if len(notes) == 0 {
 		return nil, nil
 	}

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/neuroborus/vocabulary-bot/internal/source"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
@@ -16,6 +17,7 @@ type Adapter struct {
 	serviceAccountJSON string
 	logger             *slog.Logger
 	valuesClient       ValuesClient
+	syncDetails        source.Details
 }
 
 type AdapterOptions struct {
@@ -57,7 +59,12 @@ func (a *Adapter) Name() string {
 	return "google-sheet"
 }
 
+func (a *Adapter) SyncDetails() source.Details {
+	return a.syncDetails
+}
+
 func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
+	a.syncDetails = source.Details{}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -77,6 +84,7 @@ func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
 	}
 
 	drafts, rowErrors := ParseRows(a.sheetName, rows)
+	a.syncDetails.RowParseErrors = len(rowErrors)
 	for _, rowError := range rowErrors {
 		a.logger.Warn(
 			"spreadsheet row parse skipped",

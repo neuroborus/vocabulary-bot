@@ -100,6 +100,32 @@ func TestAdapterSyncParsesRowsFromSheet(t *testing.T) {
 	}
 }
 
+func TestAdapterSyncReportsRowParseErrors(t *testing.T) {
+	t.Parallel()
+
+	adapter := NewAdapter(AdapterOptions{
+		SpreadsheetID: "sheet-1",
+		SheetName:     "Vocabulary",
+		Range:         "Vocabulary!A:F",
+		ValuesClient: fakeValuesClient{
+			rows: [][]string{
+				{"word", "translations", "contexts", "note", "tags", "enabled"},
+				{"assessing", "оценивание", "", "", "", "TRUE"},
+				{"bad", "", "", "", "", "maybe"},
+			},
+		},
+	})
+
+	if _, err := adapter.Sync(context.Background()); err != nil {
+		t.Fatalf("Sync() error = %v", err)
+	}
+
+	details := adapter.SyncDetails()
+	if details.RowParseErrors != 1 {
+		t.Fatalf("RowParseErrors = %d, want 1", details.RowParseErrors)
+	}
+}
+
 func TestAdapterSyncRequiresSpreadsheetID(t *testing.T) {
 	t.Parallel()
 

@@ -71,7 +71,7 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 			continue
 		}
 		if a.hasStoredBookContext(ctx, entry.draft.RawWord) {
-			a.bookContextStats.skippedStored++
+			a.syncStats.skippedStored++
 			a.logger.Info(
 				"pocketbook book context enrichment skipped because stored context exists",
 				slog.String("book_id", book.ID),
@@ -181,7 +181,7 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 		}
 
 		entry.draft.Contexts = appendUniqueContext(entry.draft.Contexts, sentence)
-		a.bookContextStats.enriched++
+		a.syncStats.enriched++
 		a.logger.Info(
 			"pocketbook book sentence context added",
 			slog.String("book_id", book.ID),
@@ -258,8 +258,9 @@ func draftsFromParsed(parsed []parsedBookDraft) []vocabulary.Draft {
 	return drafts
 }
 
-func fetchBookNotes(ctx context.Context, client *Client, book Book, noteIDs []NoteInfo, logger *slog.Logger) []Note {
+func fetchBookNotes(ctx context.Context, client *Client, book Book, noteIDs []NoteInfo, logger *slog.Logger) ([]Note, int) {
 	notes := make([]Note, 0, len(noteIDs))
+	failed := 0
 	for _, noteID := range noteIDs {
 		if noteID.UUID == "" {
 			continue
@@ -267,6 +268,7 @@ func fetchBookNotes(ctx context.Context, client *Client, book Book, noteIDs []No
 
 		note, ok, err := client.GetNote(ctx, noteID.UUID, book.FastHash)
 		if err != nil {
+			failed++
 			logger.Error(
 				"pocketbook note fetch failed",
 				slog.String("book_id", book.ID),
@@ -282,7 +284,7 @@ func fetchBookNotes(ctx context.Context, client *Client, book Book, noteIDs []No
 		notes = append(notes, note)
 	}
 
-	return notes
+	return notes, failed
 }
 
 func validateBookForNotes(book Book) error {

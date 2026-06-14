@@ -89,6 +89,42 @@ func TestFormatSyncSummaryIncludesBookContextStats(t *testing.T) {
 	}
 }
 
+func TestFormatSyncSummaryIncludesPartialFailureStats(t *testing.T) {
+	t.Parallel()
+
+	text := formatSyncSummary(syncer.Summary{
+		Sources: []syncer.SourceSummary{
+			{
+				Name:   "pocketbook",
+				Drafts: 12,
+				Details: source.Details{
+					BooksSkipped: 1,
+					BooksFailed:  2,
+					NotesFailed:  3,
+				},
+			},
+			{
+				Name:   "google-sheet",
+				Drafts: 20,
+				Details: source.Details{
+					RowParseErrors: 4,
+				},
+			},
+		},
+	})
+
+	for _, want := range []string{
+		"books skipped: 1",
+		"books failed: 2",
+		"notes failed: 3",
+		"row parse errors: 4",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("sync summary missing %q: %q", want, text)
+		}
+	}
+}
+
 func TestFormatSyncSummaryIncludesSkippedSpreadsheetRows(t *testing.T) {
 	t.Parallel()
 

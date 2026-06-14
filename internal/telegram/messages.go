@@ -75,6 +75,22 @@ func formatSyncSummary(summary syncer.Summary) string {
 				builder.WriteString("\n  rows skipped (unchanged): ")
 				builder.WriteString(fmt.Sprintf("%d", source.Details.RowsSkippedUnchanged))
 			}
+			if source.Details.BooksSkipped > 0 {
+				builder.WriteString("\n  books skipped: ")
+				builder.WriteString(fmt.Sprintf("%d", source.Details.BooksSkipped))
+			}
+			if source.Details.BooksFailed > 0 {
+				builder.WriteString("\n  books failed: ")
+				builder.WriteString(fmt.Sprintf("%d", source.Details.BooksFailed))
+			}
+			if source.Details.NotesFailed > 0 {
+				builder.WriteString("\n  notes failed: ")
+				builder.WriteString(fmt.Sprintf("%d", source.Details.NotesFailed))
+			}
+			if source.Details.RowParseErrors > 0 {
+				builder.WriteString("\n  row parse errors: ")
+				builder.WriteString(fmt.Sprintf("%d", source.Details.RowParseErrors))
+			}
 		}
 	}
 
