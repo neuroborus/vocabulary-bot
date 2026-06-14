@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- `normalizeBookText` now tracks newline state in O(1) instead of calling `builder.String()` inside the rune loop when flattening large EPUBs.
 - Book cache downloads now rely on `Client.DownloadFile` for atomic temp-file handling instead of adding a second `.partial` rename layer on top of the client's `.part` file.
 - `DefaultLogPath` now lives in `internal/config`, so config loading no longer imports the logging package.
 - PocketBook discovery commands now report `POCKETBOOK_SYNC_ENABLED is false` and both `pocketbook-dump-note` and `pocketbook-list-books` honor the same source switch.

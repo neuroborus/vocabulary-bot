@@ -116,6 +116,43 @@ func writeTestEPUB(t *testing.T, bodyHTML string) string {
 	return epubPath
 }
 
+func TestNormalizeBookTextCollapsesWhitespace(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "duplicate newlines",
+			input: "a\n\n\nb",
+			want:  "a\nb",
+		},
+		{
+			name:  "leading and trailing whitespace",
+			input: "  hello   world \n\n",
+			want:  "hello world",
+		},
+		{
+			name:  "windows line endings",
+			input: "one\r\n\r\ntwo",
+			want:  "one\ntwo",
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := normalizeBookText(test.input); got != test.want {
+				t.Fatalf("normalizeBookText() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func writeZipEntry(t *testing.T, writer *zip.Writer, name, content string) {
 	t.Helper()
 

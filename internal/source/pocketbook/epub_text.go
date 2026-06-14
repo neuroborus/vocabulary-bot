@@ -124,24 +124,28 @@ func normalizeBookText(value string) string {
 	var builder strings.Builder
 	builder.Grow(len(value))
 	previousSpace := false
+	previousNewline := true
 
 	for _, r := range value {
 		switch {
 		case r == '\n':
-			if builder.Len() == 0 || strings.HasSuffix(builder.String(), "\n") {
+			if previousNewline {
 				continue
 			}
 			builder.WriteByte('\n')
 			previousSpace = false
+			previousNewline = true
 		case unicode.IsSpace(r):
 			if builder.Len() == 0 || previousSpace {
 				continue
 			}
 			builder.WriteByte(' ')
 			previousSpace = true
+			previousNewline = false
 		default:
 			builder.WriteRune(r)
 			previousSpace = false
+			previousNewline = false
 		}
 	}
 
