@@ -165,13 +165,15 @@ The displayed form must not be destructively normalized.
 
 ### Translations
 
-Translations are split by comma.
+Translations are split by comma for dictionary-style headwords.
 
 Example:
 
 ```text
 замедление, снижение скорости, торможение
 ```
+
+When the `word` cell itself contains a comma, the row is treated as a sentence-style entry and the whole `translations` cell is kept as one value. This avoids splitting Russian or English sentence punctuation into fake glosses.
 
 Parsed as:
 
@@ -566,7 +568,7 @@ Use `spreadsheets.values.get` or `spreadsheets.values.batchGet` for reading the 
 For this project, a single full-range read is enough:
 
 ```text
-Vocabulary!A:Z
+Vocabulary!A:F
 ```
 
 Recommended sync flow:

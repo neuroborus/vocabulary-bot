@@ -135,7 +135,13 @@ func buildSources(cfg config.Config, logger *slog.Logger, sessionStore pocketboo
 	}
 
 	if cfg.GoogleSheet.Enabled {
-		adapters = append(adapters, spreadsheet.NewAdapter(cfg.GoogleSheet.SheetName))
+		adapters = append(adapters, spreadsheet.NewAdapter(spreadsheet.AdapterOptions{
+			SpreadsheetID:      cfg.GoogleSheet.SpreadsheetID,
+			SheetName:          cfg.GoogleSheet.SheetName,
+			Range:              cfg.GoogleSheet.Range,
+			ServiceAccountJSON: cfg.GoogleSheet.ServiceAccountJSON,
+			Logger:             logger,
+		}))
 	}
 
 	return adapters

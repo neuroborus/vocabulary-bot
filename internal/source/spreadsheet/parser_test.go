@@ -41,3 +41,27 @@ func TestParseRows(t *testing.T) {
 		t.Fatalf("RowNumber = %d, want 2", draft.Anchor.RowNumber)
 	}
 }
+
+func TestParseRowsKeepsSentenceTranslationIntact(t *testing.T) {
+	t.Parallel()
+
+	rows := [][]string{
+		{"word", "translations", "contexts", "note", "tags", "enabled"},
+		{
+			"The more people are aware of the existence of deepfakes, the less likely they are to believe everything they see",
+			"Чем больше людей знают о существовании фальшивок, тем меньше вероятность того, что они поверят всему, что увидят",
+			"", "", "", "true",
+		},
+	}
+
+	drafts, rowErrors := ParseRows("Vocabulary", rows)
+	if len(rowErrors) != 0 {
+		t.Fatalf("rowErrors = %#v, want none", rowErrors)
+	}
+	if len(drafts) != 1 {
+		t.Fatalf("drafts = %d, want 1", len(drafts))
+	}
+	if len(drafts[0].Translations) != 1 {
+		t.Fatalf("translations = %#v, want one sentence", drafts[0].Translations)
+	}
+}

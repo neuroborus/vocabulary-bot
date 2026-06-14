@@ -54,7 +54,7 @@ func ParseRows(sheetName string, rows [][]string) ([]vocabulary.Draft, []RowErro
 		drafts = append(drafts, vocabulary.Draft{
 			Source:       vocabulary.SourceGoogleSheet,
 			RawWord:      word,
-			Translations: splitAndClean(cell(row, translationIndex), ","),
+			Translations: parseTranslations(word, cell(row, translationIndex)),
 			Contexts:     splitAndClean(cell(row, contextIndex), "."),
 			Notes:        splitAndClean(cell(row, noteIndex), "\n"),
 			Tags:         splitAndClean(cell(row, tagIndex), ","),
@@ -116,6 +116,20 @@ func parseEnabled(value string) (bool, error) {
 	default:
 		return false, fmt.Errorf("invalid enabled value %q", value)
 	}
+}
+
+func parseTranslations(rawWord, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+
+	// Sentence-style rows keep one translation cell intact; commas are grammar, not gloss separators.
+	if strings.Contains(rawWord, ",") {
+		return []string{value}
+	}
+
+	return splitAndClean(value, ",")
 }
 
 func splitAndClean(value string, separator string) []string {

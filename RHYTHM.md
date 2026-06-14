@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- Implemented Google Sheets source sync: service-account auth from `GOOGLE_SERVICE_ACCOUNT_JSON` (raw JSON or base64), `spreadsheets.values.get` for `GOOGLE_SHEET_RANGE`, row parsing into `vocabulary.Draft`, and row-level error logging without aborting the whole source; sentence-style rows with commas in `word` keep the whole `translations` cell intact.
 - Documented the recommended manual Google Sheets import template `word | translations | contexts | note | tags | enabled`, including how optional `note`, `tags`, and `enabled` cells are parsed and when to leave them empty.
 - Default PocketBook book cache dir renamed to `$TMPDIR/vocabulary-bot-cache/books` to avoid collision when `/tmp/vocabulary-bot` is a leftover Go binary; `/sync` now reports `book context skipped (already in DB)` and `book context enriched` under the pocketbook source line.
 - `IsUsageExampleLine` now requires Cyrillic on the right side of `english - translation` lines so book sentences with dashes (e.g. crackpot) are not misclassified; fixes repeated enrichment on every sync for those words.

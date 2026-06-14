@@ -110,7 +110,7 @@ func Load() (Config, error) {
 			ServiceAccountJSON: getenv("GOOGLE_SERVICE_ACCOUNT_JSON", ""),
 			SpreadsheetID:      firstEnv([]string{"GOOGLE_SPREADSHEET_ID", "GOOGLE_SHEET_ID"}, ""),
 			SheetName:          getenv("GOOGLE_SHEET_NAME", "Vocabulary"),
-			Range:              getenv("GOOGLE_SHEET_RANGE", "Vocabulary!A:Z"),
+			Range:              getenv("GOOGLE_SHEET_RANGE", "Vocabulary!A:F"),
 		},
 	}
 
