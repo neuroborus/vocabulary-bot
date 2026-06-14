@@ -1,8 +1,37 @@
 # Vocabulary Bot
 
-Vocabulary Bot imports words from PocketBook notes and Google Sheets, merges them into one vocabulary model, and sends Telegram review reminders.
+Personal vocabulary assistant in Go. It imports words from PocketBook notes and Google Sheets, merges them into one model in MongoDB, and sends spaced-repetition review cards to Telegram.
 
-The current repository is a Go foundation scaffold. It keeps runtime adapters separate from source-agnostic vocabulary rules.
+Example review channel: [t.me/vocabulary_list](https://t.me/vocabulary_list)
+
+## What it does
+
+- syncs PocketBook Cloud dictionary notes and a Google Sheets vocabulary table;
+- merges both sources into shared `VocabularyItem` records without losing raw forms;
+- sends `/push` review cards to a Telegram channel or group;
+- runs scheduled sync, push, and weekly log delivery via cron;
+- exposes admin commands over Telegram long polling.
+
+Sync order is PocketBook first, then Google Sheets. Repeat syncs skip unchanged spreadsheet rows when the row fingerprint matches the stored anchor.
+
+## Quick start
+
+```bash
+cp .env.example .env
+# fill in MongoDB, Telegram, PocketBook, and Google Sheets values
+make run
+```
+
+Useful local commands:
+
+```bash
+make fmt
+make test
+make vet
+make run
+```
+
+Most tests use fake HTTP servers and in-memory storage. MongoDB storage tests connect to `MONGODB_URI` or `mongodb://127.0.0.1:27017` and skip when MongoDB is unavailable.
 
 ## Structure
 
@@ -19,82 +48,20 @@ internal/sync/               source sync orchestration
 internal/telegram/           Telegram command/notifier boundary
 internal/logging/            file logger setup
 internal/review/             review scheduling helpers
+internal/schedule/           in-process cron jobs
 docs/                        product/reference docs
 test/fixtures/               sanitized external payload fixtures
 ```
 
-`AGENTS.md` is the operational guide for AI coding agents.
-`docs/README.md` is the gate/index for product docs.
-`RHYTHM.md` is the chronological log of meaningful repository decisions.
-
-## Commands
-
-```bash
-make fmt
-make test
-make vet
-make run
-```
-
-Runtime code uses the official MongoDB Go driver when `MONGODB_URI` is configured. Most tests use fake HTTP servers and in-memory storage. MongoDB storage tests connect to `MONGODB_URI` or `mongodb://127.0.0.1:27017` and skip when MongoDB is unavailable.
-
-## Deploy
-
-Production deploy uses a small Alpine-based Docker image and GitHub Actions over SSH. See [deploy/README.md](deploy/README.md) for server setup, required secret `DEPLOY_SSH`, variable `DEPLOY_HOST`, and manual operations.
-
-```bash
-docker build -t vocabulary-bot:latest .
-docker compose up -d
-```
-
-## Storage
-
-If `MONGODB_URI` is set, the app uses MongoDB:
-
-- `vocabulary_items` stores merged vocabulary entities;
-- `pocketbook_sessions` stores the current PocketBook access/refresh session.
-
-If `MONGODB_URI` is empty, the app falls back to an in-memory vocabulary repository and a file-backed PocketBook session store.
-
-## PocketBook Sync
-
-The PocketBook adapter uses the unofficial PocketBook Cloud API flow observed in community clients:
-
-- discover shops by email;
-- bootstrap with `POCKETBOOK_EMAIL` and `POCKETBOOK_PASSWORD`;
-- store the returned access/refresh session in MongoDB `pocketbook_sessions`, or in an owner-only file when MongoDB is not configured;
-- renew the session with the stored refresh token;
-- fall back to password bootstrap and replace the stored session when the old refresh token is rejected;
-- fetch books, note IDs, note details, and emit common `vocabulary.Draft` values.
-
-Useful configuration:
-
-```bash
-POCKETBOOK_EMAIL=
-POCKETBOOK_PASSWORD=
-POCKETBOOK_SHOP_NAME=
-POCKETBOOK_TOKEN_PATH=
-POCKETBOOK_REFRESH_TOKEN=
-POCKETBOOK_BOOK_CONTEXT_ENABLED=true
-```
-
-When `POCKETBOOK_BOOK_CONTEXT_ENABLED=true`, sync downloads each book file once per book (EPUB or FB2), extracts dictionary-word sentences by `offs`, appends them to `contexts`, and deletes the temp file before the next book.
-
-Discovery helpers:
-
-```bash
-go run ./cmd/pocketbook-list-books
-go run ./cmd/pocketbook-dump-note -word lean -limit 2
-go run ./cmd/pocketbook-dump-note -uuid <note-uuid>
-```
-
-`POCKETBOOK_REFRESH_TOKEN` is only an override. Normal setup should let the app capture and persist the token automatically. Because the API is unofficial, real account payloads still need sanitized fixtures before tightening dictionary-note parsing.
+- `AGENTS.md` — operational guide for AI coding agents
+- `docs/README.md` — index for product docs
+- `RHYTHM.md` — chronological decision log
 
 ## Telegram
 
 When `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_ID`, and `TELEGRAM_POLLING_ENABLED=true` are configured, the app starts Telegram long polling after startup sync.
 
-Minimal commands:
+Commands:
 
 ```text
 /start      Welcome message and command reference
@@ -108,12 +75,68 @@ Minimal commands:
 /push       Manually send one review word with Easy/Hard buttons
 ```
 
-Only the configured `TELEGRAM_ALLOWED_USER_ID` may execute commands. Service notifications, including the startup message, are always sent to that user ID. Command responses are sent back to the chat where the command was sent. Review push cards go to `TELEGRAM_TARGET_CHAT_ID` when it is configured, show the PocketBook source at the bottom (`Title — Author` for books, `Document` for PDFs), and hide translations behind a spoiler by default (`TELEGRAM_REVIEW_SPOILER_TRANSLATIONS=false` shows them openly). `REVIEW_DOCUMENT_PUSH_FACTOR` (default `0.7`) and `REVIEW_BOOK_PUSH_FACTOR` (default `1`) scale `/push` priority for spreadsheet/PDF `Document` words and PocketBook book words respectively. PocketBook book-context enrichment caches EPUB/FB2 files under `$TMPDIR/vocabulary-bot-cache/books` (override with `POCKETBOOK_BOOK_CACHE_DIR`) and keeps up to `POCKETBOOK_BOOK_CACHE_MAX` titles (default `2`). Scheduled jobs use quoted `AUTO_SYNC_CRON`, `AUTO_PUSH_CRON`, and `AUTO_LOGS_CRON` (5-field cron); sync, push, and weekly log delivery respect `/turn_off` and `/turn_on` for sync and notification flags. `/turn_off` blocks `/sync` until `/turn_on` is used again; other manual commands still work. Weekly log delivery sends `LOG_PATH` to the allowed admin user and truncates the active log only after Telegram delivery succeeds, without keeping a local copy; `/logs` still sends the current file on demand without clearing it.
+Only `TELEGRAM_ALLOWED_USER_ID` may run commands. Service notifications go to that user. Review cards go to `TELEGRAM_TARGET_CHAT_ID` — for example, a public channel like [t.me/vocabulary_list](https://t.me/vocabulary_list).
 
-## Main Rules Already Encoded
+Push cards show source at the bottom (`Title — Author` for books, sheet name or `Document` for spreadsheet/PDF words), hide translations behind a spoiler by default, and update in place after Easy/Hard is chosen.
 
-- PocketBook and Google Sheets produce the same `vocabulary.Draft`.
-- `VocabularyItem` stores translations and contexts as independent arrays.
-- Raw visible forms are preserved in `forms`.
-- Lookup matching uses structural edge-token candidates, not hardcoded article/preposition lists.
-- Source adapters do not write to storage directly; common merge logic owns vocabulary updates.
+Priority tuning:
+
+- `REVIEW_DOCUMENT_PUSH_FACTOR` — spreadsheet-only and PDF `Document` words
+- `REVIEW_BOOK_PUSH_FACTOR` — PocketBook book anchors
+
+Scheduled jobs use `AUTO_SYNC_CRON`, `AUTO_PUSH_CRON`, and `AUTO_LOGS_CRON`. `/turn_off` blocks automatic sync and `/sync` until `/turn_on` is used again.
+
+## Sources
+
+### PocketBook Cloud
+
+Unofficial community-observed API flow:
+
+- discover shops by email;
+- bootstrap with `POCKETBOOK_EMAIL` and `POCKETBOOK_PASSWORD`;
+- persist access/refresh session in MongoDB `pocketbook_sessions` or a local file;
+- renew with stored refresh token, fall back to password bootstrap when needed;
+- fetch books, note IDs, and note details into `vocabulary.Draft`.
+
+When `POCKETBOOK_BOOK_CONTEXT_ENABLED=true`, sync downloads each book once (EPUB/FB2), extracts dictionary-word sentences by `offs`, and caches files under `$TMPDIR/vocabulary-bot-cache/books`.
+
+Discovery helpers:
+
+```bash
+go run ./cmd/pocketbook-list-books
+go run ./cmd/pocketbook-dump-note -word lean -limit 2
+go run ./cmd/pocketbook-dump-note -uuid <note-uuid>
+```
+
+### Google Sheets
+
+Reads rows from `GOOGLE_SHEET_RANGE` using a service account (`GOOGLE_SERVICE_ACCOUNT_JSON`). Expected columns: `word`, `translations`, `contexts`, `note`, `tags`, `enabled`. See `docs/product/SPREADSHEET_GOALS.md` for the import template.
+
+## Storage
+
+When `MONGODB_URI` is set:
+
+- `vocabulary_items` — merged vocabulary entities
+- `pocketbook_sessions` — current PocketBook session
+
+Without MongoDB, vocabulary stays in memory and PocketBook session falls back to a file store.
+
+## Deploy
+
+Production deploy uses a small Alpine Docker image (~43 MB) and GitHub Actions over SSH. Runtime `.env` is rendered from GitHub secrets and variables on each deploy.
+
+See [deploy/README.md](deploy/README.md) for server setup, `DEPLOY_SSH`, `DEPLOY_HOST`, and manual operations.
+
+```bash
+docker build -t vocabulary-bot:latest .
+docker compose up -d
+```
+
+## Core rules
+
+- PocketBook and Google Sheets both produce `vocabulary.Draft`.
+- `translations` and `contexts` are independent arrays.
+- Raw visible forms are always preserved in `forms`.
+- Lookup matching uses structural edge-token candidates, not article/preposition whitelists.
+- Source adapters do not write to storage; common merge logic owns updates.
+- Ambiguous matches are reported, not auto-merged.
