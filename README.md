@@ -99,7 +99,7 @@ Minimal commands:
 /push       Manually send one review word with Easy/Hard buttons
 ```
 
-Only the configured `TELEGRAM_ALLOWED_USER_ID` may execute commands. Service notifications, including the startup message, are always sent to that user ID. Command responses are sent back to the chat where the command was sent. Review push cards go to `TELEGRAM_TARGET_CHAT_ID` when it is configured. Set `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS=false` to show translations openly on `/push` cards. Scheduled jobs use `AUTO_SYNC_CRON` and `AUTO_PUSH_CRON` (5-field cron); they respect `/turn_off` and `/turn_on` for sync and notification flags. `/turn_off` blocks `/sync` until `/turn_on` is used again; other manual commands still work.
+Only the configured `TELEGRAM_ALLOWED_USER_ID` may execute commands. Service notifications, including the startup message, are always sent to that user ID. Command responses are sent back to the chat where the command was sent. Review push cards go to `TELEGRAM_TARGET_CHAT_ID` when it is configured, show the PocketBook source (`Title — Author` for books, `Document` for PDFs), and hide translations behind a spoiler by default (`TELEGRAM_REVIEW_SPOILER_TRANSLATIONS=false` shows them openly). Scheduled jobs use quoted `AUTO_SYNC_CRON` and `AUTO_PUSH_CRON` (5-field cron); they respect `/turn_off` and `/turn_on` for sync and notification flags. `/turn_off` blocks `/sync` until `/turn_on` is used again; other manual commands still work.
 
 ## Main Rules Already Encoded
 

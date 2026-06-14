@@ -36,6 +36,12 @@ func formatReviewReminder(item vocabulary.Item, spoilerTranslations bool) string
 	builder.WriteString(escapeHTML(item.DisplayWord))
 	builder.WriteString("</b>")
 
+	if sourceLabel := vocabulary.PrimarySourceLabel(item); sourceLabel != "" {
+		builder.WriteString("\n<i>")
+		builder.WriteString(escapeHTML(sourceLabel))
+		builder.WriteString("</i>")
+	}
+
 	if len(lexicon.Contexts) > 0 {
 		builder.WriteString("\n\n<b>Context</b>")
 		for _, contextValue := range lexicon.Contexts {

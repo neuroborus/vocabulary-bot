@@ -42,6 +42,7 @@ type SourceAnchor struct {
 	BookID      string    `json:"bookId,omitempty" bson:"bookId,omitempty"`
 	BookTitle   string    `json:"bookTitle,omitempty" bson:"bookTitle,omitempty"`
 	Author      string    `json:"author,omitempty" bson:"author,omitempty"`
+	SourceLabel string    `json:"sourceLabel,omitempty" bson:"sourceLabel,omitempty"`
 	Page        string    `json:"page,omitempty" bson:"page,omitempty"`
 	Position    string    `json:"position,omitempty" bson:"position,omitempty"`
 	FirstSeenAt time.Time `json:"firstSeenAt" bson:"firstSeenAt"`

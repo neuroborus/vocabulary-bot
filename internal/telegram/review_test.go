@@ -7,6 +7,28 @@ import (
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
+func TestFormatReviewReminderShowsSourceLabel(t *testing.T) {
+	t.Parallel()
+
+	text := formatReviewReminder(vocabulary.Item{
+		DisplayWord: "grasp",
+		Anchors: []vocabulary.SourceAnchor{
+			{
+				Source:      vocabulary.SourcePocketBook,
+				SourceLabel: "Necromancer — Fred Saberhagen",
+			},
+		},
+		Contexts: []string{"Though it stood clear and sharp on the screen before him, Paul could not seem to grasp its image as a whole."},
+	}, false)
+
+	if !strings.Contains(text, "Necromancer — Fred Saberhagen") {
+		t.Fatalf("source label missing: %q", text)
+	}
+	if strings.Index(text, "Necromancer") > strings.Index(text, "<b>Context</b>") {
+		t.Fatalf("source label should appear before context: %q", text)
+	}
+}
+
 func TestFormatReviewReminderWrapsTranslationsInSpoiler(t *testing.T) {
 	t.Parallel()
 

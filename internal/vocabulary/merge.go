@@ -309,6 +309,15 @@ func mergeAnchor(item *Item, incoming SourceAnchor, now time.Time) {
 				item.Anchors[index].FirstSeenAt = incoming.FirstSeenAt
 			}
 			item.Anchors[index].LastSeenAt = now
+			if incoming.SourceLabel != "" {
+				item.Anchors[index].SourceLabel = incoming.SourceLabel
+			}
+			if incoming.BookTitle != "" {
+				item.Anchors[index].BookTitle = incoming.BookTitle
+			}
+			if incoming.Author != "" {
+				item.Anchors[index].Author = incoming.Author
+			}
 			return
 		}
 	}

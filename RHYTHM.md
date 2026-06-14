@@ -4,7 +4,8 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
-- Extended PocketBook book-context enrichment to FB2 (`application/x-fictionbook+xml`) with word-offset fallback when `offs` does not match flattened book text; extracted sentences are normalized with `vocabulary.CleanContextLine` to drop dangling dialogue quotes.
+- PocketBook anchors now carry `sourceLabel` (`Title — Author` for books, `Document` for PDFs); `/push` cards show the latest label under the word.
+- Quoted `AUTO_SYNC_CRON` and `AUTO_PUSH_CRON` in `.env.example` so `source .env` does not treat cron spaces as shell commands.
 - Added `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS` to hide `/push` translation blocks behind a Telegram spoiler by default.
 - Added in-process cron scheduling via `AUTO_SYNC_CRON` (default `0 9 * * *`) and `AUTO_PUSH_CRON` (default `0 12-21/2 * * *`) with optional `SCHEDULE_TIMEZONE`; scheduled jobs respect `/turn_off` and `/turn_on`.
 - Review `/push` callbacks now edit the card in place: buttons disappear and the chosen Easy/Hard result is appended to the message; the Remove button was dropped.

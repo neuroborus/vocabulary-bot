@@ -60,13 +60,14 @@ func ParseNote(book Book, note Note) (vocabulary.Draft, bool) {
 		Translations: translations,
 		Contexts:     contexts,
 		Anchor: vocabulary.SourceAnchor{
-			Source:     vocabulary.SourcePocketBook,
-			ExternalID: note.UUID,
-			BookID:     book.ID,
-			BookTitle:  firstNonEmpty(book.Title, book.Metadata.Title),
-			Author:     book.Metadata.Authors,
-			Page:       pageFromAnchor(markAnchor(note)),
-			Position:   markAnchor(note),
+			Source:      vocabulary.SourcePocketBook,
+			ExternalID:  note.UUID,
+			BookID:      book.ID,
+			BookTitle:   firstNonEmpty(book.Title, book.Metadata.Title),
+			Author:      book.Metadata.Authors,
+			SourceLabel: pocketbookSourceLabel(book),
+			Page:        pageFromAnchor(markAnchor(note)),
+			Position:    markAnchor(note),
 		},
 	}
 

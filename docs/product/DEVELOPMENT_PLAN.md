@@ -529,6 +529,7 @@ A reminder message should show:
 
 ```text
 word / known forms
+source label (PocketBook book title with author, or Document for PDFs)
 translations
 one or more contexts
 ```
@@ -537,6 +538,7 @@ Example:
 
 ```text
 to decelerate
+Necromancer — Fred Saberhagen
 
 Forms:
 - decelerate

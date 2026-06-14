@@ -232,6 +232,7 @@ type PocketBookVocabularyDraft = {
     bookId?: string;
     bookTitle?: string;
     author?: string;
+    sourceLabel?: string;
     noteId?: string;
     page?: number | string;
     position?: string;
@@ -248,6 +249,7 @@ word          -> the selected dictionary word
 translations  -> all translations available in the note
 contexts      -> the saved context text, if present
 sourceMeta    -> book/note/page/position information, if present
+sourceLabel   -> `Title — Author` for books, `Document` for PDF library items
 ```
 
 ### 8.1 Dictionary-note context sources (validated on Era Color)
@@ -397,6 +399,8 @@ type SourceAnchor = {
   rowNumber?: number;
   bookId?: string;
   bookTitle?: string;
+  author?: string;
+  sourceLabel?: string;
   page?: number | string;
   position?: string;
 };

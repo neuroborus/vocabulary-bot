@@ -108,6 +108,9 @@ func TestAdapterBootstrapsAfterStoredRefreshTokenFails(t *testing.T) {
 	if draft.Anchor.ExternalID != "note-1" || draft.Anchor.BookTitle != "Road Book" || draft.Anchor.Page != "36" {
 		t.Fatalf("anchor = %#v", draft.Anchor)
 	}
+	if draft.Anchor.SourceLabel != "Road Book — A. Writer" {
+		t.Fatalf("SourceLabel = %q, want Road Book — A. Writer", draft.Anchor.SourceLabel)
+	}
 
 	saved, ok, err := store.Load(context.Background())
 	if err != nil {
