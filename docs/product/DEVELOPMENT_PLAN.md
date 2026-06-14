@@ -554,7 +554,7 @@ Contexts:
 Suggested buttons:
 
 ```text
-Easy | Hard | Delete
+Easy | Hard
 ```
 
 Button behavior:
@@ -562,14 +562,13 @@ Button behavior:
 ```text
 Easy:
 - mark the word as easier;
-- schedule it further in the future.
+- schedule it further in the future;
+- edit the push card in place, remove buttons, and append the chosen result.
 
 Hard:
 - mark the word as harder;
-- schedule it sooner.
-
-Delete:
-- disable or remove the word from future reminders.
+- schedule it sooner;
+- edit the push card in place, remove buttons, and append the chosen result.
 ```
 
 Button presses should be accepted only from `TELEGRAM_ALLOWED_USER_ID`.
@@ -939,7 +938,7 @@ MVP should include:
 5. PocketBook sync adapter.
 6. Google Sheets sync adapter.
 7. Merge pipeline.
-8. Telegram reminders with Easy / Hard / Delete buttons.
+8. Telegram reminders with Easy / Hard buttons that edit the card after selection.
 9. Commands:
    - /start
    - /info

@@ -158,18 +158,12 @@ func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query Callback
 	}
 
 	now := h.now().UTC()
-	var answer string
 
 	switch action {
 	case reviewActionEasy:
 		review.MarkEasy(&item, now)
-		answer = fmt.Sprintf("Easy. Next review in %d day(s).", item.Review.IntervalDays)
 	case reviewActionHard:
 		review.MarkHard(&item, now)
-		answer = "Hard. Next review tomorrow."
-	case reviewActionRemove, "delete":
-		review.MarkDisabled(&item, now)
-		answer = "Removed from review queue."
 	default:
 		return h.notifier.AnswerCallbackQuery(ctx, query.ID, "Unknown action")
 	}
@@ -185,13 +179,33 @@ func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query Callback
 		return h.notifier.AnswerCallbackQuery(ctx, query.ID, "Save failed")
 	}
 
+	if query.Message != nil {
+		if err := h.notifier.EditHTMLMessage(
+			ctx,
+			query.Message.Chat.ID,
+			query.Message.MessageID,
+			formatReviewAnswered(item, action, h.reviewSpoilerTranslations),
+			emptyInlineKeyboard(),
+		); err != nil {
+			h.logger.Error(
+				"review callback message edit failed",
+				slog.Int64("chat_id", query.Message.Chat.ID),
+				slog.Int("message_id", query.Message.MessageID),
+				slog.String("normalized_key", normalizedKey),
+				slog.String("action", action),
+				slog.String("error", logging.SanitizeError(err)),
+			)
+			return h.notifier.AnswerCallbackQuery(ctx, query.ID, "Update failed")
+		}
+	}
+
 	h.logger.Info(
 		"review callback handled",
 		slog.String("normalized_key", normalizedKey),
 		slog.String("action", action),
 	)
 
-	return h.notifier.AnswerCallbackQuery(ctx, query.ID, answer)
+	return h.notifier.AnswerCallbackQuery(ctx, query.ID, "")
 }
 
 func (h *CommandHandler) handlePush(ctx context.Context, commandChatID int64) error {

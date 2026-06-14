@@ -3,13 +3,14 @@ package telegram
 import (
 	"fmt"
 	"strings"
+
+	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
 const (
 	reviewCallbackPrefix = "review"
 	reviewActionEasy     = "easy"
 	reviewActionHard     = "hard"
-	reviewActionRemove   = "remove"
 )
 
 type InlineKeyboardMarkup struct {
@@ -27,10 +28,29 @@ func reviewKeyboard(normalizedKey string) InlineKeyboardMarkup {
 			{
 				{Text: "Easy", CallbackData: reviewCallbackData(reviewActionEasy, normalizedKey)},
 				{Text: "Hard", CallbackData: reviewCallbackData(reviewActionHard, normalizedKey)},
-				{Text: "Remove", CallbackData: reviewCallbackData(reviewActionRemove, normalizedKey)},
 			},
 		},
 	}
+}
+
+func emptyInlineKeyboard() InlineKeyboardMarkup {
+	return InlineKeyboardMarkup{InlineKeyboard: [][]InlineKeyboardButton{}}
+}
+
+func formatReviewAnswered(item vocabulary.Item, action string, spoilerTranslations bool) string {
+	base := formatReviewReminder(item, spoilerTranslations)
+
+	var footer string
+	switch action {
+	case reviewActionEasy:
+		footer = fmt.Sprintf("\n\n<b>✓ Easy</b> — next review in %d day(s).", item.Review.IntervalDays)
+	case reviewActionHard:
+		footer = "\n\n<b>✓ Hard</b> — next review tomorrow."
+	default:
+		return base
+	}
+
+	return base + footer
 }
 
 func reviewCallbackData(action, normalizedKey string) string {

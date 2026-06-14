@@ -7,7 +7,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 - Extended PocketBook book-context enrichment to FB2 (`application/x-fictionbook+xml`) with word-offset fallback when `offs` does not match flattened book text; extracted sentences are normalized with `vocabulary.CleanContextLine` to drop dangling dialogue quotes.
 - Added `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS` to hide `/push` translation blocks behind a Telegram spoiler by default.
 - Added in-process cron scheduling via `AUTO_SYNC_CRON` (default `0 9 * * *`) and `AUTO_PUSH_CRON` (default `0 12-21/2 * * *`) with optional `SCHEDULE_TIMEZONE`; scheduled jobs respect `/turn_off` and `/turn_on`.
-- Implemented `/push` review reminders with Easy/Hard/Remove inline buttons, score-aware word selection in `internal/review`, HTML-formatted Telegram messages, lexicon display parsing (transcription, POS sections, context), and delivery to `TELEGRAM_TARGET_CHAT_ID` when configured; service notifications stay on `TELEGRAM_ALLOWED_USER_ID`.
+- Review `/push` callbacks now edit the card in place: buttons disappear and the chosen Easy/Hard result is appended to the message; the Remove button was dropped.
 - Moved dictionary usage-example lines (`english - перевод`) from `translations` into `contexts` during PocketBook parse and merge via `vocabulary.PartitionUsageExamples`.
 - Added PocketBook discovery commands `cmd/pocketbook-dump-note` and `cmd/pocketbook-list-books` for raw note/book inspection during API validation.
 - Documented and implemented sequential PocketBook book-download context enrichment during sync (`POCKETBOOK_BOOK_CONTEXT_ENABLED`): download book file (EPUB/FB2), extract `pbr:/word` sentence by `offs`, delete temp file.

@@ -346,16 +346,34 @@ func TestCommandHandlerReviewCallbackEasy(t *testing.T) {
 	if err := handler.HandleCallbackQuery(ctx, CallbackQuery{
 		ID:   "cb-1",
 		From: User{ID: 42},
+		Message: &Message{
+			MessageID: 77,
+			Chat:      Chat{ID: 900},
+		},
 		Data: reviewCallbackData(reviewActionEasy, "decelerate"),
 	}); err != nil {
 		t.Fatalf("callback: %v", err)
 	}
 
+	if len(notifier.editedMessages) != 1 {
+		t.Fatalf("edited messages = %d, want 1", len(notifier.editedMessages))
+	}
+	edited := notifier.editedMessages[0]
+	if edited.chatID != 900 || edited.messageID != 77 {
+		t.Fatalf("edited target = chat %d message %d, want 900/77", edited.chatID, edited.messageID)
+	}
+	if !strings.Contains(edited.text, "✓ Easy") {
+		t.Fatalf("edited text = %q", edited.text)
+	}
+	if edited.keyboard == nil || len(edited.keyboard.InlineKeyboard) != 0 {
+		t.Fatal("edited message should have empty keyboard")
+	}
+
 	if len(notifier.callbackResponses) != 1 {
 		t.Fatalf("callback responses = %d, want 1", len(notifier.callbackResponses))
 	}
-	if !strings.Contains(notifier.callbackResponses[0].text, "Easy") {
-		t.Fatalf("callback answer = %q", notifier.callbackResponses[0].text)
+	if notifier.callbackResponses[0].text != "" {
+		t.Fatalf("callback answer = %q, want empty toast", notifier.callbackResponses[0].text)
 	}
 
 	items, err := repository.List(ctx)
@@ -422,6 +440,7 @@ func (r *fakeSyncRunner) Run(ctx context.Context) (syncer.Summary, error) {
 
 type fakeNotifier struct {
 	messages          []fakeMessage
+	editedMessages    []fakeEditedMessage
 	documents         []fakeDocument
 	callbackResponses []fakeCallbackResponse
 	chatActions       []fakeChatAction
@@ -436,6 +455,13 @@ type fakeMessage struct {
 	chatID   int64
 	text     string
 	keyboard *InlineKeyboardMarkup
+}
+
+type fakeEditedMessage struct {
+	chatID    int64
+	messageID int
+	text      string
+	keyboard  *InlineKeyboardMarkup
 }
 
 type fakeCallbackResponse struct {
@@ -460,6 +486,21 @@ func (n *fakeNotifier) SendHTMLMessage(ctx context.Context, chatID int64, text s
 func (n *fakeNotifier) SendHTMLMessageWithKeyboard(ctx context.Context, chatID int64, text string, keyboard InlineKeyboardMarkup) error {
 	keyboardCopy := keyboard
 	return n.recordMessage(ctx, chatID, text, &keyboardCopy)
+}
+
+func (n *fakeNotifier) EditHTMLMessage(ctx context.Context, chatID int64, messageID int, text string, keyboard InlineKeyboardMarkup) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	keyboardCopy := keyboard
+	n.editedMessages = append(n.editedMessages, fakeEditedMessage{
+		chatID:    chatID,
+		messageID: messageID,
+		text:      text,
+		keyboard:  &keyboardCopy,
+	})
+	return nil
 }
 
 func (n *fakeNotifier) AnswerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error {

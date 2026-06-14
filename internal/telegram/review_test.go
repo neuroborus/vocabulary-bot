@@ -245,6 +245,36 @@ func TestParseReviewCallback(t *testing.T) {
 	}
 }
 
+func TestReviewKeyboardHasEasyAndHardOnly(t *testing.T) {
+	t.Parallel()
+
+	keyboard := reviewKeyboard("decelerate")
+	if len(keyboard.InlineKeyboard) != 1 || len(keyboard.InlineKeyboard[0]) != 2 {
+		t.Fatalf("keyboard = %#v, want one row with Easy and Hard", keyboard.InlineKeyboard)
+	}
+}
+
+func TestFormatReviewAnsweredAppendsChoice(t *testing.T) {
+	t.Parallel()
+
+	text := formatReviewAnswered(vocabulary.Item{
+		DisplayWord: "decelerate",
+		Review: vocabulary.ReviewState{
+			IntervalDays: 2,
+		},
+	}, reviewActionEasy, false)
+
+	if !strings.Contains(text, "decelerate") {
+		t.Fatalf("text = %q", text)
+	}
+	if !strings.Contains(text, "✓ Easy") {
+		t.Fatalf("text = %q, want Easy marker", text)
+	}
+	if !strings.Contains(text, "2 day(s)") {
+		t.Fatalf("text = %q, want interval", text)
+	}
+}
+
 func TestReviewKeyboardCallbackDataWithinTelegramLimit(t *testing.T) {
 	t.Parallel()
 

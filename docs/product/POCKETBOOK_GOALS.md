@@ -582,7 +582,7 @@ The bot must support these commands:
   Manually synchronize all sources now, starting with PocketBook.
 
 /push
-  Manually send one review word with Easy/Hard/Delete buttons.
+  Manually send one review word with Easy/Hard buttons.
 
 /logs
   Send the current log file without clearing it.

@@ -88,6 +88,10 @@ func (c *Client) SendHTMLMessageWithKeyboard(ctx context.Context, chatID int64, 
 	return c.sendMessage(ctx, chatID, text, parseModeHTML, &keyboard)
 }
 
+func (c *Client) EditHTMLMessage(ctx context.Context, chatID int64, messageID int, text string, keyboard InlineKeyboardMarkup) error {
+	return c.editMessage(ctx, chatID, messageID, text, parseModeHTML, &keyboard)
+}
+
 func (c *Client) sendMessage(ctx context.Context, chatID int64, text, parseMode string, keyboard *InlineKeyboardMarkup) error {
 	values := url.Values{}
 	values.Set("chat_id", strconv.FormatInt(chatID, 10))
@@ -115,6 +119,39 @@ func (c *Client) sendMessage(ctx context.Context, chatID int64, text, parseMode 
 	}
 	if !response.OK {
 		return fmt.Errorf("telegram sendMessage failed: %s", response.Description)
+	}
+
+	return nil
+}
+
+func (c *Client) editMessage(ctx context.Context, chatID int64, messageID int, text, parseMode string, keyboard *InlineKeyboardMarkup) error {
+	values := url.Values{}
+	values.Set("chat_id", strconv.FormatInt(chatID, 10))
+	values.Set("message_id", strconv.Itoa(messageID))
+	values.Set("text", text)
+	if parseMode != "" {
+		values.Set("parse_mode", parseMode)
+	}
+	if keyboard != nil {
+		payload, err := json.Marshal(keyboard)
+		if err != nil {
+			return err
+		}
+		values.Set("reply_markup", string(payload))
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("editMessageText"), strings.NewReader(values.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	var response apiResponse[json.RawMessage]
+	if err := c.doJSON(req, &response); err != nil {
+		return err
+	}
+	if !response.OK {
+		return fmt.Errorf("telegram editMessageText failed: %s", response.Description)
 	}
 
 	return nil
