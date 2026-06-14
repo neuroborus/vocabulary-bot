@@ -7,23 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
+
+	"github.com/neuroborus/vocabulary-bot/internal/source/session"
 )
 
-type Session struct {
-	AccessToken          string    `json:"accessToken"`
-	RefreshToken         string    `json:"refreshToken"`
-	AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
-	ShopAlias            string    `json:"shopAlias"`
-	ShopID               string    `json:"shopId,omitempty"`
-	ShopName             string    `json:"shopName,omitempty"`
-}
+type Session = session.PocketBook
 
-type SessionStore interface {
-	Load(ctx context.Context) (Session, bool, error)
-	Save(ctx context.Context, session Session) error
-	Clear(ctx context.Context) error
-}
+type SessionStore = session.PocketBookStore
 
 type MemorySessionStore struct {
 	mu      sync.RWMutex

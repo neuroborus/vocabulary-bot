@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neuroborus/vocabulary-bot/internal/source/pocketbook"
+	"github.com/neuroborus/vocabulary-bot/internal/source/session"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -175,7 +175,7 @@ func TestPocketBookSessionStoreRoundTrip(t *testing.T) {
 	}
 
 	expiresAt := time.Date(2026, 6, 14, 13, 0, 0, 0, time.UTC)
-	session := pocketbook.Session{
+	savedSession := session.PocketBook{
 		AccessToken:          "FAKE_ACCESS_TOKEN_FOR_TEST_ONLY",
 		RefreshToken:         "FAKE_REFRESH_TOKEN_FOR_TEST_ONLY",
 		AccessTokenExpiresAt: expiresAt,
@@ -183,7 +183,7 @@ func TestPocketBookSessionStoreRoundTrip(t *testing.T) {
 		ShopID:               "shop-123",
 		ShopName:             "Example Shop",
 	}
-	if err := store.Save(ctx, session); err != nil {
+	if err := store.Save(ctx, savedSession); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
@@ -194,12 +194,12 @@ func TestPocketBookSessionStoreRoundTrip(t *testing.T) {
 	if !ok {
 		t.Fatal("Load() saved ok = false, want true")
 	}
-	if loaded != session {
-		t.Fatalf("loaded session = %#v, want %#v", loaded, session)
+	if loaded != savedSession {
+		t.Fatalf("loaded session = %#v, want %#v", loaded, savedSession)
 	}
 
-	session.ShopName = "Updated Shop"
-	if err := store.Save(ctx, session); err != nil {
+	savedSession.ShopName = "Updated Shop"
+	if err := store.Save(ctx, savedSession); err != nil {
 		t.Fatalf("Save() update error = %v", err)
 	}
 
@@ -226,7 +226,7 @@ func TestPocketBookSessionStoreClear(t *testing.T) {
 		t.Fatalf("Clear() empty error = %v", err)
 	}
 
-	if err := store.Save(ctx, pocketbook.Session{
+	if err := store.Save(ctx, session.PocketBook{
 		AccessToken:  "FAKE_ACCESS_TOKEN_FOR_TEST_ONLY",
 		RefreshToken: "FAKE_REFRESH_TOKEN_FOR_TEST_ONLY",
 		ShopAlias:    "example-shop",
@@ -272,7 +272,7 @@ func TestRepositoryRespectsCancelledContext(t *testing.T) {
 	if _, _, err := store.Load(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Load() error = %v, want context.Canceled", err)
 	}
-	if err := store.Save(ctx, pocketbook.Session{ShopAlias: "example-shop"}); !errors.Is(err, context.Canceled) {
+	if err := store.Save(ctx, session.PocketBook{ShopAlias: "example-shop"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Save() error = %v, want context.Canceled", err)
 	}
 	if err := store.Clear(ctx); !errors.Is(err, context.Canceled) {

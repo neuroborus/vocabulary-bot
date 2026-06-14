@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neuroborus/vocabulary-bot/internal/source/pocketbook"
+	"github.com/neuroborus/vocabulary-bot/internal/source/session"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
@@ -197,9 +197,9 @@ func NewPocketBookSessionStore(database *mongodriver.Database) *PocketBookSessio
 	}
 }
 
-func (s *PocketBookSessionStore) Load(ctx context.Context) (pocketbook.Session, bool, error) {
+func (s *PocketBookSessionStore) Load(ctx context.Context) (session.PocketBook, bool, error) {
 	if err := ctx.Err(); err != nil {
-		return pocketbook.Session{}, false, err
+		return session.PocketBook{}, false, err
 	}
 
 	var document pocketBookSessionDocument
@@ -208,25 +208,25 @@ func (s *PocketBookSessionStore) Load(ctx context.Context) (pocketbook.Session, 
 		return document.toSession(), true, nil
 	}
 	if errors.Is(err, mongodriver.ErrNoDocuments) {
-		return pocketbook.Session{}, false, nil
+		return session.PocketBook{}, false, nil
 	}
 
-	return pocketbook.Session{}, false, err
+	return session.PocketBook{}, false, err
 }
 
-func (s *PocketBookSessionStore) Save(ctx context.Context, session pocketbook.Session) error {
+func (s *PocketBookSessionStore) Save(ctx context.Context, pocketbookSession session.PocketBook) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
 	document := pocketBookSessionDocument{
 		ID:                   pocketBookSessionID,
-		AccessToken:          session.AccessToken,
-		RefreshToken:         session.RefreshToken,
-		AccessTokenExpiresAt: session.AccessTokenExpiresAt,
-		ShopAlias:            session.ShopAlias,
-		ShopID:               session.ShopID,
-		ShopName:             session.ShopName,
+		AccessToken:          pocketbookSession.AccessToken,
+		RefreshToken:         pocketbookSession.RefreshToken,
+		AccessTokenExpiresAt: pocketbookSession.AccessTokenExpiresAt,
+		ShopAlias:            pocketbookSession.ShopAlias,
+		ShopID:               pocketbookSession.ShopID,
+		ShopName:             pocketbookSession.ShopName,
 		UpdatedAt:            time.Now().UTC(),
 	}
 
@@ -249,8 +249,8 @@ func (s *PocketBookSessionStore) Clear(ctx context.Context) error {
 	return err
 }
 
-func (d pocketBookSessionDocument) toSession() pocketbook.Session {
-	return pocketbook.Session{
+func (d pocketBookSessionDocument) toSession() session.PocketBook {
+	return session.PocketBook{
 		AccessToken:          d.AccessToken,
 		RefreshToken:         d.RefreshToken,
 		AccessTokenExpiresAt: d.AccessTokenExpiresAt,

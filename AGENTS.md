@@ -24,6 +24,7 @@ internal/app/                composition root
 internal/config/             environment configuration
 internal/vocabulary/         domain model, normalization, merge rules
 internal/source/             source adapter contract
+internal/source/session/     neutral PocketBook session store boundary
 internal/source/pocketbook/  PocketBook source boundary
 internal/source/spreadsheet/ Google Sheets source boundary and row parser
 internal/storage/            persistence adapters
