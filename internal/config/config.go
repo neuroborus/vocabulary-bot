@@ -180,15 +180,9 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
-func getenv(key string, fallback string) string {
-	value := unquoteEnvValue(os.Getenv(key))
-	if value == "" {
-		return fallback
-	}
-
-	return value
-}
-
+// unquoteEnvValue normalizes shell-style quoting on env values.
+// Deploy may write quoted .env lines; Docker env_file may pass quotes through literally.
+// Every config env reader goes through envValue, so quoted and plain values both work.
 func unquoteEnvValue(raw string) string {
 	value := strings.TrimSpace(raw)
 	if len(value) < 2 {
@@ -210,18 +204,32 @@ func unquoteEnvValue(raw string) string {
 	return value
 }
 
-func lookupEnvOrDefault(key string, fallback string) string {
-	raw, ok := os.LookupEnv(key)
-	if !ok {
+func getenv(key string, fallback string) string {
+	value := envValue(key)
+	if value == "" {
 		return fallback
 	}
 
-	return strings.TrimSpace(raw)
+	return value
+}
+
+func envValue(key string) string {
+	return unquoteEnvValue(os.Getenv(key))
+}
+
+// lookupEnvOrDefault returns the env value when the key is set, including empty string.
+// Use getenv when an empty or missing value should fall back to a default.
+func lookupEnvOrDefault(key string, fallback string) string {
+	if _, ok := os.LookupEnv(key); !ok {
+		return fallback
+	}
+
+	return envValue(key)
 }
 
 func firstEnv(keys []string, fallback string) string {
 	for _, key := range keys {
-		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		if value := envValue(key); value != "" {
 			return value
 		}
 	}
@@ -230,7 +238,7 @@ func firstEnv(keys []string, fallback string) string {
 }
 
 func getenvBool(key string, fallback bool) (bool, error) {
-	value := strings.TrimSpace(os.Getenv(key))
+	value := envValue(key)
 	if value == "" {
 		return fallback, nil
 	}
@@ -244,7 +252,7 @@ func getenvBool(key string, fallback bool) (bool, error) {
 }
 
 func getenvInt(key string, fallback int) (int, error) {
-	value := strings.TrimSpace(os.Getenv(key))
+	value := envValue(key)
 	if value == "" {
 		return fallback, nil
 	}
@@ -258,7 +266,7 @@ func getenvInt(key string, fallback int) (int, error) {
 }
 
 func getenvFloat(key string, fallback float64) (float64, error) {
-	value := strings.TrimSpace(os.Getenv(key))
+	value := envValue(key)
 	if value == "" {
 		return fallback, nil
 	}
@@ -275,7 +283,7 @@ func getenvFloat(key string, fallback float64) (float64, error) {
 }
 
 func optionalInt64(key string) (int64, error) {
-	value := strings.TrimSpace(os.Getenv(key))
+	value := envValue(key)
 	if value == "" {
 		return 0, nil
 	}

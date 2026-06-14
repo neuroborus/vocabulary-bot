@@ -28,6 +28,8 @@ if uri != want:
     raise SystemExit(f"unexpected MONGODB_URI: {uri!r}")
 if values.get("POCKETBOOK_PASSWORD") != "p@ss&word":
     raise SystemExit("POCKETBOOK_PASSWORD was not preserved")
+if values.get("AUTO_SYNC_CRON") != "0 9 * * *":
+    raise SystemExit(f"unexpected AUTO_SYNC_CRON: {values.get('AUTO_SYNC_CRON')!r}")
 PY
 }
 
@@ -49,6 +51,8 @@ export POCKETBOOK_PASSWORD='p@ss&word'
 export GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"example"}'
 export APP_ENV='beta'
 export SYNC_ENABLED='true'
+export AUTO_SYNC_CRON='0 9 * * *'
+export AUTO_PUSH_CRON='0 12-21/2 * * *'
 
 bash "$root/deploy/render-env.sh" "$target"
 python3 "$root/deploy/envfile.py" "$target"

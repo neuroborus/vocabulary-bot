@@ -92,27 +92,126 @@ func TestLoadEnvValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("strips single quotes from env values", func(t *testing.T) {
-		t.Setenv("MONGODB_URI", `'mongodb+srv://example.test/db?retryWrites=true&w=majority'`)
+	t.Run("accepts quoted and plain env values", func(t *testing.T) {
+		const (
+			mongoURI   = "mongodb+srv://example.test/db?retryWrites=true&w=majority"
+			botToken   = "1234567890:FAKE_TELEGRAM_BOT_TOKEN_FOR_TEST_ONLY"
+			password   = "p@ss&word"
+			sheetRange = "Vocabulary!A:F"
+		)
 
-		cfg, err := config.Load()
-		if err != nil {
-			t.Fatalf("Load() error = %v", err)
+		cases := []struct {
+			name string
+			env  map[string]string
+			want func(t *testing.T, cfg config.Config)
+		}{
+			{
+				name: "string secrets and paths",
+				env: map[string]string{
+					"MONGODB_URI":         mongoURI,
+					"TELEGRAM_BOT_TOKEN":  botToken,
+					"POCKETBOOK_PASSWORD": password,
+					"GOOGLE_SHEET_RANGE":  sheetRange,
+				},
+				want: func(t *testing.T, cfg config.Config) {
+					t.Helper()
+					if cfg.MongoDB.URI != mongoURI {
+						t.Fatalf("MongoDB.URI = %q", cfg.MongoDB.URI)
+					}
+					if cfg.Telegram.BotToken != botToken {
+						t.Fatalf("BotToken = %q", cfg.Telegram.BotToken)
+					}
+					if cfg.PocketBook.Password != password {
+						t.Fatalf("Password = %q", cfg.PocketBook.Password)
+					}
+					if cfg.GoogleSheet.Range != sheetRange {
+						t.Fatalf("Range = %q", cfg.GoogleSheet.Range)
+					}
+				},
+			},
+			{
+				name: "single-quoted values",
+				env: map[string]string{
+					"MONGODB_URI":                 `'` + mongoURI + `'`,
+					"TELEGRAM_BOT_TOKEN":          `'` + botToken + `'`,
+					"POCKETBOOK_PASSWORD":         `'` + password + `'`,
+					"SYNC_ENABLED":                `'false'`,
+					"POCKETBOOK_BOOK_CACHE_MAX":   `'5'`,
+					"REVIEW_DOCUMENT_PUSH_FACTOR": `'0.8'`,
+					"TELEGRAM_ALLOWED_USER_ID":    `'42'`,
+					"AUTO_SYNC_CRON":              `'0 9 * * *'`,
+					"GOOGLE_SHEET_RANGE":          `'` + sheetRange + `'`,
+				},
+				want: func(t *testing.T, cfg config.Config) {
+					t.Helper()
+					if cfg.MongoDB.URI != mongoURI {
+						t.Fatalf("MongoDB.URI = %q", cfg.MongoDB.URI)
+					}
+					if cfg.Telegram.BotToken != botToken {
+						t.Fatalf("BotToken = %q", cfg.Telegram.BotToken)
+					}
+					if cfg.PocketBook.Password != password {
+						t.Fatalf("Password = %q", cfg.PocketBook.Password)
+					}
+					if cfg.SyncEnabled {
+						t.Fatal("SyncEnabled = true, want false from quoted 'false'")
+					}
+					if cfg.PocketBook.BookCacheMax != 5 {
+						t.Fatalf("BookCacheMax = %d, want 5", cfg.PocketBook.BookCacheMax)
+					}
+					if cfg.Review.DocumentPushFactor != 0.8 {
+						t.Fatalf("DocumentPushFactor = %v, want 0.8", cfg.Review.DocumentPushFactor)
+					}
+					if cfg.Telegram.AllowedUserID != 42 {
+						t.Fatalf("AllowedUserID = %d, want 42", cfg.Telegram.AllowedUserID)
+					}
+					if cfg.Schedule.AutoSyncCron != "0 9 * * *" {
+						t.Fatalf("AutoSyncCron = %q", cfg.Schedule.AutoSyncCron)
+					}
+					if cfg.GoogleSheet.Range != sheetRange {
+						t.Fatalf("Range = %q", cfg.GoogleSheet.Range)
+					}
+				},
+			},
+			{
+				name: "double-quoted values",
+				env: map[string]string{
+					"MONGODB_URI":       `"` + mongoURI + `"`,
+					"AUTO_PUSH_CRON":    `"0 12-21/2 * * *"`,
+					"AUTO_LOGS_CRON":    `"0 21 * * 5"`,
+					"SCHEDULE_TIMEZONE": `"Europe/Kyiv"`,
+				},
+				want: func(t *testing.T, cfg config.Config) {
+					t.Helper()
+					if cfg.MongoDB.URI != mongoURI {
+						t.Fatalf("MongoDB.URI = %q", cfg.MongoDB.URI)
+					}
+					if cfg.Schedule.AutoPushCron != "0 12-21/2 * * *" {
+						t.Fatalf("AutoPushCron = %q", cfg.Schedule.AutoPushCron)
+					}
+					if cfg.Schedule.AutoLogsCron != "0 21 * * 5" {
+						t.Fatalf("AutoLogsCron = %q", cfg.Schedule.AutoLogsCron)
+					}
+					if cfg.Schedule.Timezone != "Europe/Kyiv" {
+						t.Fatalf("Timezone = %q", cfg.Schedule.Timezone)
+					}
+				},
+			},
 		}
-		if cfg.MongoDB.URI != "mongodb+srv://example.test/db?retryWrites=true&w=majority" {
-			t.Fatalf("MongoDB.URI = %q, want quoted value unwrapped", cfg.MongoDB.URI)
-		}
-	})
 
-	t.Run("strips double quotes from env values", func(t *testing.T) {
-		t.Setenv("MONGODB_URI", `"mongodb+srv://example.test/db?retryWrites=true&w=majority"`)
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				for key, value := range tc.env {
+					t.Setenv(key, value)
+				}
 
-		cfg, err := config.Load()
-		if err != nil {
-			t.Fatalf("Load() error = %v", err)
-		}
-		if cfg.MongoDB.URI != "mongodb+srv://example.test/db?retryWrites=true&w=majority" {
-			t.Fatalf("MongoDB.URI = %q, want quoted value unwrapped", cfg.MongoDB.URI)
+				cfg, err := config.Load()
+				if err != nil {
+					t.Fatalf("Load() error = %v", err)
+				}
+
+				tc.want(t, cfg)
+			})
 		}
 	})
 }

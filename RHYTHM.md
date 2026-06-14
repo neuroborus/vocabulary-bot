@@ -4,7 +4,8 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
-- Deploy env rendering now writes secrets quoted in `.env` (single or double), validates `MONGODB_URI` before upload, and `config.Load` unwraps both quote styles.
+- `config.Load` now unwraps single and double quotes for all env values, including quoted cron expressions such as `AUTO_SYNC_CRON='0 9 * * *'`.
+- GitHub Actions workflows now use Node.js 24-native action majors (`actions/checkout@v6`, `actions/setup-go@v6`) instead of the temporary `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` opt-in.
 - CI now runs only on pull requests targeting `main`, not on every push to `dev` or `main`.
 - Deploy remote steps now fall back to `sudo docker` when the SSH user cannot access `/var/run/docker.sock` directly.
 - Deploy now defaults to `~/vocabulary-bot` when `DEPLOY_PATH` is unset and falls back to `sudo mkdir/chown` for fixed paths such as `/opt/vocabulary-bot`.
