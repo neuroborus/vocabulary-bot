@@ -15,8 +15,18 @@ type AutoPushRunner interface {
 	RunAutoPush(ctx context.Context) error
 }
 
-func JobsFromConfig(cfg config.ScheduleConfig, syncRunner AutoSyncRunner, pushRunner AutoPushRunner) ([]Job, error) {
-	jobs := make([]Job, 0, 2)
+type AutoLogsRunner interface {
+	RunAutoLogs(ctx context.Context) error
+}
+
+type ScheduledRunner interface {
+	AutoSyncRunner
+	AutoPushRunner
+	AutoLogsRunner
+}
+
+func JobsFromConfig(cfg config.ScheduleConfig, runner ScheduledRunner) ([]Job, error) {
+	jobs := make([]Job, 0, 3)
 
 	if cfg.AutoSyncCron != "" {
 		spec, err := ParseSpec(cfg.AutoSyncCron)
@@ -26,7 +36,7 @@ func JobsFromConfig(cfg config.ScheduleConfig, syncRunner AutoSyncRunner, pushRu
 		jobs = append(jobs, Job{
 			Name: "auto_sync",
 			Spec: spec,
-			Run:  syncRunner.RunAutoSync,
+			Run:  runner.RunAutoSync,
 		})
 	}
 
@@ -38,7 +48,19 @@ func JobsFromConfig(cfg config.ScheduleConfig, syncRunner AutoSyncRunner, pushRu
 		jobs = append(jobs, Job{
 			Name: "auto_push",
 			Spec: spec,
-			Run:  pushRunner.RunAutoPush,
+			Run:  runner.RunAutoPush,
+		})
+	}
+
+	if cfg.AutoLogsCron != "" {
+		spec, err := ParseSpec(cfg.AutoLogsCron)
+		if err != nil {
+			return nil, fmt.Errorf("auto logs cron: %w", err)
+		}
+		jobs = append(jobs, Job{
+			Name: "auto_logs",
+			Spec: spec,
+			Run:  runner.RunAutoLogs,
 		})
 	}
 

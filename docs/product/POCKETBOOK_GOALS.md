@@ -550,12 +550,19 @@ All application logs must be saved to a log file.
 A weekly job must:
 
 ```text
-1. collect the current log file
-2. send it to the allowed Telegram user
-3. only after successful Telegram delivery, clear or rotate the log file
+1. send the current LOG_PATH file to TELEGRAM_ALLOWED_USER_ID
+2. only after successful Telegram delivery, truncate the active log file
+3. on delivery failure, keep the active log and retry on the next AUTO_LOGS_CRON run
 ```
 
-Telegram command `/logs` must send the current log file on demand.
+Scheduler env:
+
+```text
+AUTO_LOGS_CRON='0 21 * * 5'
+```
+
+The job respects `/turn_off` and `/turn_on` through the shared notifications flag, same as auto push.
+Manual `/logs` still sends the current file on demand without clearing it.
 
 The log file must not contain secrets, refresh tokens, passwords, cookies, or full raw API responses if they may contain credentials.
 
@@ -697,7 +704,7 @@ Add Telegram commands:
 /logs
 ```
 
-Add weekly log delivery and rotation.
+Weekly log delivery and rotation are implemented via `AUTO_LOGS_CRON` (default Friday 21:00).
 
 ## 19. Known risks
 

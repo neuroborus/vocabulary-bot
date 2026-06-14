@@ -204,7 +204,7 @@ func runTelegram(
 }
 
 func startScheduler(ctx context.Context, cfg config.Config, handler *telegram.CommandHandler, logger *slog.Logger) error {
-	jobs, err := schedule.JobsFromConfig(cfg.Schedule, handler, handler)
+	jobs, err := schedule.JobsFromConfig(cfg.Schedule, handler)
 	if err != nil {
 		return fmt.Errorf("build schedule jobs: %w", err)
 	}
@@ -227,6 +227,7 @@ func startScheduler(ctx context.Context, cfg config.Config, handler *telegram.Co
 		slog.String("timezone", cfg.Schedule.Timezone),
 		slog.String("auto_sync_cron", cfg.Schedule.AutoSyncCron),
 		slog.String("auto_push_cron", cfg.Schedule.AutoPushCron),
+		slog.String("auto_logs_cron", cfg.Schedule.AutoLogsCron),
 		slog.Int("jobs", len(jobs)),
 	)
 

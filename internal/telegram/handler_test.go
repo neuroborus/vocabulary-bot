@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -424,6 +426,102 @@ func TestCommandHandlerTurnOffBlocksSync(t *testing.T) {
 	}
 }
 
+func TestRunAutoLogsSendsActiveLogAndTruncatesIt(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "vocabulary.log")
+	if err := os.WriteFile(logPath, []byte("weekly log line\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:             notifier,
+		AllowedUserID:        42,
+		LogPath:              logPath,
+		NotificationsEnabled: true,
+	})
+
+	if err := handler.RunAutoLogs(context.Background()); err != nil {
+		t.Fatalf("RunAutoLogs() error = %v", err)
+	}
+
+	if len(notifier.documents) != 1 {
+		t.Fatalf("documents = %d, want 1", len(notifier.documents))
+	}
+	if notifier.documents[0].chatID != 42 {
+		t.Fatalf("delivery chatID = %d, want 42", notifier.documents[0].chatID)
+	}
+	if notifier.documents[0].path != logPath {
+		t.Fatalf("document path = %q, want %q", notifier.documents[0].path, logPath)
+	}
+
+	activeData, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile(active) error = %v", err)
+	}
+	if len(activeData) != 0 {
+		t.Fatalf("active log after delivery = %q, want empty", string(activeData))
+	}
+}
+
+func TestRunAutoLogsKeepsActiveLogWhenDeliveryFails(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "vocabulary.log")
+	if err := os.WriteFile(logPath, []byte("keep me\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	notifier := &fakeNotifier{documentErr: os.ErrPermission}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:             notifier,
+		AllowedUserID:        42,
+		LogPath:              logPath,
+		NotificationsEnabled: true,
+	})
+
+	err := handler.RunAutoLogs(context.Background())
+	if err == nil {
+		t.Fatal("RunAutoLogs() error = nil, want delivery failure")
+	}
+
+	activeData, readErr := os.ReadFile(logPath)
+	if readErr != nil {
+		t.Fatalf("ReadFile(active) error = %v", readErr)
+	}
+	if string(activeData) != "keep me\n" {
+		t.Fatalf("active log after failure = %q, want original content", string(activeData))
+	}
+}
+
+func TestRunAutoLogsSkipsWhenNotificationsDisabled(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "vocabulary.log")
+	if err := os.WriteFile(logPath, []byte("still here\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:             notifier,
+		AllowedUserID:        42,
+		LogPath:              logPath,
+		NotificationsEnabled: false,
+	})
+
+	if err := handler.RunAutoLogs(context.Background()); err != nil {
+		t.Fatalf("RunAutoLogs() error = %v", err)
+	}
+	if len(notifier.documents) != 0 {
+		t.Fatalf("documents = %d, want none", len(notifier.documents))
+	}
+}
+
 type fakeSyncRunner struct {
 	calls   int
 	summary syncer.Summary
@@ -444,6 +542,7 @@ type fakeNotifier struct {
 	documents         []fakeDocument
 	callbackResponses []fakeCallbackResponse
 	chatActions       []fakeChatAction
+	documentErr       error
 }
 
 type fakeChatAction struct {
@@ -536,6 +635,9 @@ func (n *fakeNotifier) SendChatAction(ctx context.Context, chatID int64, action 
 func (n *fakeNotifier) SendDocument(ctx context.Context, chatID int64, path string, caption string) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if n.documentErr != nil {
+		return n.documentErr
 	}
 
 	n.documents = append(n.documents, fakeDocument{chatID: chatID, path: path, caption: caption})

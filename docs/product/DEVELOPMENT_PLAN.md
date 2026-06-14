@@ -769,24 +769,29 @@ Once per week, the system should:
 Recommended behavior:
 
 ```text
-- If sending logs succeeds: archive or clear logs/vocabulary.log.
+- If sending logs succeeds: truncate logs/vocabulary.log to free disk space.
 - If sending logs fails: keep the file and retry on the next scheduled run.
-```
-
-Simple MVP approach:
-
-```text
-logs/vocabulary.log
-logs/archive/vocabulary-YYYY-MM-DD.log
+- Do not keep a second local copy; Telegram is the off-site archive.
 ```
 
 Weekly job:
 
 ```text
-1. Copy logs/vocabulary.log to logs/archive/vocabulary-YYYY-MM-DD.log.
-2. Send archived file to Telegram.
-3. If Telegram delivery succeeds, truncate logs/vocabulary.log.
+1. Send logs/vocabulary.log to TELEGRAM_ALLOWED_USER_ID.
+2. If Telegram delivery succeeds, truncate logs/vocabulary.log.
+3. If Telegram delivery fails, keep the active log and retry on the next scheduled run.
 ```
+
+Scheduler env:
+
+```text
+AUTO_LOGS_CRON='0 21 * * 5'
+SCHEDULE_TIMEZONE=
+```
+
+Leave `AUTO_LOGS_CRON` empty to disable the job. Times use `SCHEDULE_TIMEZONE` or local time.
+The job respects `/turn_off` and `/turn_on` through the shared `notificationsEnabled` flag, same as auto push.
+Manual `/logs` still sends the current file on demand and does not clear it.
 
 ---
 

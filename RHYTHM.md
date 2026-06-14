@@ -4,7 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
-- Expanded log sanitization to redact Telegram bot URLs, service-account `private_key` fields, PEM blocks, and verbose Google API `Details` blobs; all error logging paths now go through `logging.SanitizeError`.
+- Added scheduled weekly log delivery via `AUTO_LOGS_CRON` (default `0 21 * * 5`, Friday 21:00 in `SCHEDULE_TIMEZONE`): send `LOG_PATH` to `TELEGRAM_ALLOWED_USER_ID`, truncate the active log only after Telegram delivery succeeds (no local archive copy); `/logs` still sends the current file without clearing it; job respects `/turn_off` notification flag like auto push.
 - Implemented Google Sheets source sync: service-account auth from `GOOGLE_SERVICE_ACCOUNT_JSON` (raw JSON or base64), `spreadsheets.values.get` for `GOOGLE_SHEET_RANGE`, row parsing into `vocabulary.Draft`, and row-level error logging without aborting the whole source; sentence-style rows with commas in `word` keep the whole `translations` cell intact.
 - Documented the recommended manual Google Sheets import template `word | translations | contexts | note | tags | enabled`, including how optional `note`, `tags`, and `enabled` cells are parsed and when to leave them empty.
 - Default PocketBook book cache dir renamed to `$TMPDIR/vocabulary-bot-cache/books` to avoid collision when `/tmp/vocabulary-bot` is a leftover Go binary; `/sync` now reports `book context skipped (already in DB)` and `book context enriched` under the pocketbook source line.

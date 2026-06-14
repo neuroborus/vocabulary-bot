@@ -434,6 +434,55 @@ func (h *CommandHandler) handleLogs(ctx context.Context, chatID int64) error {
 	return h.notifier.SendDocument(ctx, chatID, h.logPath, "📋 Current log file")
 }
 
+// RunAutoLogs sends the active log file to the allowed admin user and truncates
+// it only after Telegram delivery succeeds.
+func (h *CommandHandler) RunAutoLogs(ctx context.Context) error {
+	if !h.notificationsEnabled {
+		h.logger.Info("scheduled log delivery skipped because notifications are disabled")
+		return nil
+	}
+	if h.logPath == "" {
+		return fmt.Errorf("log file path is not configured")
+	}
+	if h.allowedUserID == 0 {
+		return fmt.Errorf("telegram allowed user is not configured")
+	}
+
+	info, err := os.Stat(h.logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			h.logger.Info("scheduled log delivery skipped because log file does not exist")
+			return nil
+		}
+		return err
+	}
+	if info.Size() == 0 {
+		h.logger.Info("scheduled log delivery skipped because log file is empty")
+		return nil
+	}
+
+	if err := h.notifier.SendDocument(ctx, h.allowedUserID, h.logPath, "📋 Weekly log export"); err != nil {
+		h.logger.Error(
+			"scheduled log delivery failed",
+			slog.String("error", logging.SanitizeError(err)),
+			slog.String("log_path", h.logPath),
+		)
+		return err
+	}
+
+	if err := logging.TruncateFile(h.logPath); err != nil {
+		return err
+	}
+
+	h.logger.Info(
+		"scheduled log delivery completed",
+		slog.String("log_path", h.logPath),
+		slog.Int64("delivery_chat_id", h.allowedUserID),
+	)
+
+	return nil
+}
+
 func (h *CommandHandler) sendHTMLMessage(ctx context.Context, chatID int64, text string) error {
 	return h.notifier.SendHTMLMessage(ctx, chatID, text)
 }

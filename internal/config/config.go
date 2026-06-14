@@ -23,6 +23,7 @@ type ScheduleConfig struct {
 	Timezone     string
 	AutoSyncCron string
 	AutoPushCron string
+	AutoLogsCron string
 }
 
 type MongoDBConfig struct {
@@ -92,6 +93,7 @@ func Load() (Config, error) {
 			Timezone:     getenv("SCHEDULE_TIMEZONE", ""),
 			AutoSyncCron: lookupEnvOrDefault("AUTO_SYNC_CRON", "0 9 * * *"),
 			AutoPushCron: lookupEnvOrDefault("AUTO_PUSH_CRON", "0 12-21/2 * * *"),
+			AutoLogsCron: lookupEnvOrDefault("AUTO_LOGS_CRON", "0 21 * * 5"),
 		},
 		PocketBook: PocketBookConfig{
 			Enabled:            getenvBool("POCKETBOOK_SYNC_ENABLED", true),
