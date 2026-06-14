@@ -38,6 +38,29 @@ make run
 
 The scaffold uses only the Go standard library for now, so tests run without network access or external services.
 
+## PocketBook Sync
+
+The PocketBook adapter uses the unofficial PocketBook Cloud API flow observed in community clients:
+
+- discover shops by email;
+- bootstrap with `POCKETBOOK_EMAIL` and `POCKETBOOK_PASSWORD`;
+- store the returned access/refresh session in an owner-only file;
+- renew the session with the stored refresh token;
+- fall back to password bootstrap and replace the stored session when the old refresh token is rejected;
+- fetch books, note IDs, note details, and emit common `vocabulary.Draft` values.
+
+Useful configuration:
+
+```bash
+POCKETBOOK_EMAIL=
+POCKETBOOK_PASSWORD=
+POCKETBOOK_SHOP_NAME=
+POCKETBOOK_TOKEN_PATH=
+POCKETBOOK_REFRESH_TOKEN=
+```
+
+`POCKETBOOK_REFRESH_TOKEN` is only an override. Normal setup should let the app capture and persist the token automatically. Because the API is unofficial, real account payloads still need sanitized fixtures before tightening dictionary-note parsing.
+
 ## Main Rules Already Encoded
 
 - PocketBook and Google Sheets produce the same `vocabulary.Draft`.

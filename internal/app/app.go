@@ -30,7 +30,7 @@ func Run(ctx context.Context) error {
 	repository := memory.NewVocabularyRepository()
 	vocabularyService := vocabulary.NewService(repository, time.Now)
 
-	sources := buildSources(cfg)
+	sources := buildSources(cfg, logger)
 	syncService := syncer.NewService(sources, vocabularyService, logger)
 
 	logger.Info(
@@ -63,11 +63,19 @@ func Run(ctx context.Context) error {
 	return nil
 }
 
-func buildSources(cfg config.Config) []source.Adapter {
+func buildSources(cfg config.Config, logger *slog.Logger) []source.Adapter {
 	adapters := make([]source.Adapter, 0, 2)
 
 	if cfg.PocketBook.Enabled {
-		adapters = append(adapters, pocketbook.NewAdapter())
+		adapters = append(adapters, pocketbook.NewAdapter(pocketbook.AdapterOptions{
+			BaseURL:      cfg.PocketBook.BaseURL,
+			Email:        cfg.PocketBook.Email,
+			Password:     cfg.PocketBook.Password,
+			RefreshToken: cfg.PocketBook.RefreshToken,
+			ShopName:     cfg.PocketBook.ShopName,
+			SessionStore: pocketbook.NewFileSessionStore(cfg.PocketBook.TokenPath),
+			Logger:       logger,
+		}))
 	}
 
 	if cfg.GoogleSheet.Enabled {

@@ -80,17 +80,26 @@ The fallback parser can be implemented later, but the core model must not depend
 
 ### 5.1 Preferred authentication
 
-Use normal PocketBook account login by email/password and then persist a refresh token or equivalent long-lived session token, if the current PocketBook Cloud flow provides one.
+Use normal PocketBook account login by email/password for bootstrap, then persist the refresh token or equivalent long-lived session token returned by the unofficial PocketBook Cloud login flow.
+
+The user should not have to manually extract or paste a refresh token during normal setup. The bootstrap command should authenticate with email/password, capture the token from the login response, save it through the application's token store, and verify that the stored token can be used for a follow-up authenticated request.
+
+After bootstrap, scheduled sync should prefer the stored refresh/session token and should use the password only when an explicit re-bootstrap is requested or when no valid stored token exists.
 
 Do not store the PocketBook password in the application database.
 
-Required secrets:
+Required bootstrap secrets:
 
 ```text
 POCKETBOOK_EMAIL
-POCKETBOOK_PASSWORD             # only if refresh-token bootstrap cannot be done manually
-POCKETBOOK_REFRESH_TOKEN        # preferred long-lived secret after bootstrap
+POCKETBOOK_PASSWORD             # bootstrap-only secret; do not persist in the app database
 POCKETBOOK_SHOP_NAME            # optional, only if account exposes multiple shops/stores
+```
+
+Optional override secrets:
+
+```text
+POCKETBOOK_REFRESH_TOKEN        # manual/CI override when a writable token store is unavailable
 ```
 
 ### 5.2 Social login is out of scope
@@ -99,16 +108,33 @@ Do not rely on Google/Facebook/social login for automation. Community tooling no
 
 ### 5.3 Token storage
 
+Refresh tokens, access tokens, cookies, and equivalent session values are secrets. Store only the minimum token material needed to refresh the PocketBook session.
+
+Preferred application behavior:
+
+```text
+1. Bootstrap with POCKETBOOK_EMAIL and POCKETBOOK_PASSWORD.
+2. Save the returned refresh/session token in the application's persistent token store.
+3. During normal sync, load the stored token and refresh the short-lived access token if needed.
+4. If refresh fails because the token is expired or revoked, report a clear re-bootstrap-required error.
+```
+
+For the current Go implementation, the token store is a file-backed secret store. By default it uses the user's config directory, or the explicit `POCKETBOOK_TOKEN_PATH` when configured. The file must be written with owner-only permissions.
+
+For a server or local runner with MongoDB available, the same token-store interface may later be backed by a small MongoDB collection, for example `pocketbook_sessions`. This collection must be treated as secret-bearing storage and should never store the PocketBook password.
+
 For GitHub Actions:
 
 ```text
 POCKETBOOK_EMAIL        -> GitHub Actions secret
-POCKETBOOK_PASSWORD     -> GitHub Actions secret, only if unavoidable
-POCKETBOOK_REFRESH_TOKEN -> GitHub Actions secret, preferred
+POCKETBOOK_PASSWORD     -> GitHub Actions secret, bootstrap-only if the workflow performs bootstrap
+POCKETBOOK_REFRESH_TOKEN -> optional GitHub Actions secret override if DB token storage is not used
 MONGODB_URI             -> GitHub Actions secret
 TELEGRAM_BOT_TOKEN      -> GitHub Actions secret
 TELEGRAM_ALLOWED_USER_ID -> GitHub Actions secret
 ```
+
+If GitHub Actions uses MongoDB as the persistent application database, it can also use MongoDB as the token store. That avoids manually rotating `POCKETBOOK_REFRESH_TOKEN` in repository secrets after the initial bootstrap flow.
 
 For a local runner or server:
 
@@ -116,6 +142,8 @@ For a local runner or server:
 .env
 credentials.json with chmod 600
 system keychain / secret manager if available
+MongoDB token store if the app already uses MongoDB
+POCKETBOOK_TOKEN_PATH for an explicit file-backed token store location
 ```
 
 No credentials, refresh tokens, raw API responses containing tokens, or cookies may be committed.
@@ -141,6 +169,17 @@ incremental sync -> fetch only books/notes changed since the last successful syn
 ```
 
 If the unofficial API does not provide reliable timestamps or cursors, incremental sync should still be safe by doing a full fetch and relying on database-level idempotent merge.
+
+Current endpoint assumptions are based on public community clients and must be fixture-validated against the user's account:
+
+```text
+GET  /auth/login?username=...&client_id=...&client_secret=...
+POST /auth/login/{shopAlias}
+POST /auth/renew-token
+GET  /books?limit=500
+GET  /notes?fast_hash={bookFastHash}
+GET  /notes/{uuid}?fast_hash={bookFastHash}
+```
 
 ## 7. Raw data that should be preserved
 
@@ -384,7 +423,7 @@ Constraints:
 ```text
 - GitHub-hosted runners are ephemeral.
 - All state must live in MongoDB, GitHub artifacts, or committed state files.
-- PocketBook Cloud refresh tokens must be stored as GitHub Secrets.
+- PocketBook Cloud refresh/session tokens must be stored in a secret-bearing persistent store, preferably MongoDB for this app; GitHub Secrets remain a valid override when DB token storage is unavailable.
 - If the unofficial PocketBook auth flow requires browser interaction, a one-time local bootstrap may be needed.
 - If PocketBook changes the private API, the workflow may break.
 ```
@@ -456,7 +495,9 @@ Before considering the PocketBook integration done, verify:
 ```text
 [ ] Device can save dictionary translation notes with translation and context.
 [ ] Device syncs notes to PocketBook Cloud.
-[ ] Adapter can authenticate using password login or a stored refresh token.
+[ ] Adapter can authenticate using password login during bootstrap.
+[ ] Bootstrap stores the returned refresh/session token without requiring manual token copy-paste.
+[ ] Scheduled sync can authenticate using the stored refresh/session token.
 [ ] Adapter can list books from the cloud library.
 [ ] Adapter can fetch notes/highlights for at least one book.
 [ ] Parser can identify translation notes.

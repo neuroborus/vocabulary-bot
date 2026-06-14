@@ -35,6 +35,8 @@ type PocketBookConfig struct {
 	Password     string
 	RefreshToken string
 	ShopName     string
+	BaseURL      string
+	TokenPath    string
 }
 
 type GoogleSheetConfig struct {
@@ -76,6 +78,8 @@ func Load() (Config, error) {
 			Password:     getenv("POCKETBOOK_PASSWORD", ""),
 			RefreshToken: getenv("POCKETBOOK_REFRESH_TOKEN", ""),
 			ShopName:     getenv("POCKETBOOK_SHOP_NAME", ""),
+			BaseURL:      getenv("POCKETBOOK_API_BASE_URL", ""),
+			TokenPath:    getenv("POCKETBOOK_TOKEN_PATH", ""),
 		},
 		GoogleSheet: GoogleSheetConfig{
 			Enabled:            getenvBool("GOOGLE_SHEET_SYNC_ENABLED", true),

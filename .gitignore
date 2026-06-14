@@ -9,4 +9,6 @@ coverage.out
 logs/*.log
 logs/archive/*.log
 
+pocketbook-session*.json
+
 .DS_Store
