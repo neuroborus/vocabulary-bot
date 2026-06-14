@@ -80,6 +80,9 @@ jobs:
           POCKETBOOK_PASSWORD: ${{ secrets.POCKETBOOK_PASSWORD }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
+      - name: Validate rendered env
+        run: python3 deploy/envfile.py .env.deploy
+
       - name: Configure SSH
         env:
           DEPLOY_SSH: ${{ secrets.DEPLOY_SSH }}

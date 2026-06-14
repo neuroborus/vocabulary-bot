@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- Deploy env rendering now writes secrets quoted in `.env` (single or double), validates `MONGODB_URI` before upload, and `config.Load` unwraps both quote styles.
 - CI now runs only on pull requests targeting `main`, not on every push to `dev` or `main`.
 - Deploy remote steps now fall back to `sudo docker` when the SSH user cannot access `/var/run/docker.sock` directly.
 - Deploy now defaults to `~/vocabulary-bot` when `DEPLOY_PATH` is unset and falls back to `sudo mkdir/chown` for fixed paths such as `/opt/vocabulary-bot`.

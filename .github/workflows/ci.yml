@@ -25,6 +25,9 @@ jobs:
       - name: Check formatting
         run: test -z "$(gofmt -l cmd internal)"
 
+      - name: Validate deploy env rendering
+        run: bash deploy/render-env_test.sh
+
       - name: Test
         run: go test ./...
 

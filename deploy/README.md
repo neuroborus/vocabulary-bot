@@ -32,7 +32,7 @@ Add the deploy public key to `~/.ssh/authorized_keys` for the deploy user.
 | Secret | Purpose |
 |--------|---------|
 | `DEPLOY_SSH` | Private SSH key for deploy |
-| `MONGODB_URI` | MongoDB connection string |
+| `MONGODB_URI` | MongoDB connection string only (`mongodb://...` or `mongodb+srv://...`). Deploy writes secrets quoted in `.env` (single quotes by default, double when needed); the GitHub secret may be raw or wrapped in single/double quotes. |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token |
 | `POCKETBOOK_PASSWORD` | PocketBook account password |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google service account JSON (raw or base64) |
@@ -83,8 +83,9 @@ Recommended: create a GitHub `production` environment for the deploy job so depl
 - `Deploy` — runs after tests on push to `main` and on manual **Run workflow**:
   1. build Docker image in GitHub Actions;
   2. render `.env` from GitHub secrets/variables;
-  3. copy `docker-compose.yml`, `.env`, and image archive over SSH;
-  4. `docker load` + `docker compose up -d` on the server.
+  3. validate rendered secrets such as `MONGODB_URI` before upload;
+  4. copy `docker-compose.yml`, `.env`, and image archive over SSH;
+  5. `docker load` + `docker compose up -d` on the server.
 
 ## Manual operations on the server
 

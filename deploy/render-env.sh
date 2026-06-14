@@ -2,36 +2,33 @@
 set -euo pipefail
 
 target="${1:-.env}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 dotenv_value() {
-	python3 - "$1" <<'PY'
+	local value="$1"
+	local force_quote="$2"
+
+	python3 - "$value" "$force_quote" "$script_dir" <<'PY'
 import sys
+from pathlib import Path
 
-value = sys.argv[1]
-if value == "":
-    sys.exit(0)
+sys.path.insert(0, sys.argv[3])
+from envfile import format_dotenv_value
 
-if all(ch.isalnum() or ch in "._/-:" for ch in value):
-    sys.stdout.write(value)
-else:
-    escaped = (
-        value.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-    )
-    sys.stdout.write(f'"{escaped}"')
+print(format_dotenv_value(sys.argv[1], force_quote=sys.argv[2] == "true"), end="")
 PY
 }
 
 write_kv() {
 	local key="$1"
 	local value="${2:-}"
+	local force_quote="${3:-false}"
 
 	if [ -z "$value" ]; then
 		return 0
 	fi
 
-	printf '%s=%s\n' "$key" "$(dotenv_value "$value")" >>"$target"
+	printf '%s=%s\n' "$key" "$(dotenv_value "$value" "$force_quote")" >>"$target"
 }
 
 : >"$target"
@@ -77,12 +74,12 @@ secret_keys=(
 
 for key in "${keys[@]}"; do
 	value="${!key:-}"
-	write_kv "$key" "$value"
+	write_kv "$key" "$value" "false"
 done
 
 for key in "${secret_keys[@]}"; do
 	value="${!key:-}"
-	write_kv "$key" "$value"
+	write_kv "$key" "$value" "true"
 done
 
 chmod 600 "$target"

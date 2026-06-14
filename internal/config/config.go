@@ -181,9 +181,30 @@ func Load() (Config, error) {
 }
 
 func getenv(key string, fallback string) string {
-	value := strings.TrimSpace(os.Getenv(key))
+	value := unquoteEnvValue(os.Getenv(key))
 	if value == "" {
 		return fallback
+	}
+
+	return value
+}
+
+func unquoteEnvValue(raw string) string {
+	value := strings.TrimSpace(raw)
+	if len(value) < 2 {
+		return value
+	}
+
+	if value[0] == '"' && value[len(value)-1] == '"' {
+		return strings.NewReplacer(
+			`\\`, `\`,
+			`\"`, `"`,
+			`\n`, "\n",
+		).Replace(value[1 : len(value)-1])
+	}
+
+	if value[0] == '\'' && value[len(value)-1] == '\'' {
+		return value[1 : len(value)-1]
 	}
 
 	return value

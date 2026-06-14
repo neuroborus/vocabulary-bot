@@ -91,4 +91,28 @@ func TestLoadEnvValidation(t *testing.T) {
 			t.Fatalf("DocumentPushFactor = %v, want 0.7", cfg.Review.DocumentPushFactor)
 		}
 	})
+
+	t.Run("strips single quotes from env values", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", `'mongodb+srv://example.test/db?retryWrites=true&w=majority'`)
+
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.MongoDB.URI != "mongodb+srv://example.test/db?retryWrites=true&w=majority" {
+			t.Fatalf("MongoDB.URI = %q, want quoted value unwrapped", cfg.MongoDB.URI)
+		}
+	})
+
+	t.Run("strips double quotes from env values", func(t *testing.T) {
+		t.Setenv("MONGODB_URI", `"mongodb+srv://example.test/db?retryWrites=true&w=majority"`)
+
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.MongoDB.URI != "mongodb+srv://example.test/db?retryWrites=true&w=majority" {
+			t.Fatalf("MongoDB.URI = %q, want quoted value unwrapped", cfg.MongoDB.URI)
+		}
+	})
 }
