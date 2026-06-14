@@ -4,7 +4,9 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
-- PocketBook book-context enrichment now uses an on-disk cache under `$TMPDIR/vocabulary-bot/books` (override with `POCKETBOOK_BOOK_CACHE_DIR`), keyed by `fast_hash`, with `lastUsedAt` sidecar metadata and LRU eviction at `POCKETBOOK_BOOK_CACHE_MAX` (default `2`); stale versions for the same `bookId` are removed when `fast_hash` changes.
+- Default PocketBook book cache dir renamed to `$TMPDIR/vocabulary-bot-cache/books` to avoid collision when `/tmp/vocabulary-bot` is a leftover Go binary; `/sync` now reports `book context skipped (already in DB)` and `book context enriched` under the pocketbook source line.
+- `IsUsageExampleLine` now requires Cyrillic on the right side of `english - translation` lines so book sentences with dashes (e.g. crackpot) are not misclassified; fixes repeated enrichment on every sync for those words.
+- PocketBook book-context enrichment uses an on-disk cache keyed by `fast_hash`, with `lastUsedAt` sidecar metadata and LRU eviction at `POCKETBOOK_BOOK_CACHE_MAX` (default `2`); stale versions for the same `bookId` are removed when `fast_hash` changes; words that already have a book sentence in Mongo are skipped during enrichment.
 - `/push` cards now show the PocketBook source label at the bottom of the message, after context and translations.
 - Quoted `AUTO_SYNC_CRON` and `AUTO_PUSH_CRON` in `.env.example` so `source .env` does not treat cron spaces as shell commands.
 - Added `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS` to hide `/push` translation blocks behind a Telegram spoiler by default.

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neuroborus/vocabulary-bot/internal/source"
 	syncer "github.com/neuroborus/vocabulary-bot/internal/sync"
 )
 
@@ -53,6 +54,34 @@ func TestFormatSyncSummaryIncludesSections(t *testing.T) {
 		"<b>Sources</b>",
 		"pocketbook",
 		"timeout &amp; retry",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("sync summary missing %q: %q", want, text)
+		}
+	}
+}
+
+func TestFormatSyncSummaryIncludesBookContextStats(t *testing.T) {
+	t.Parallel()
+
+	text := formatSyncSummary(syncer.Summary{
+		DraftsProcessed: 29,
+		Updated:         29,
+		Sources: []syncer.SourceSummary{
+			{
+				Name:   "pocketbook",
+				Drafts: 29,
+				Details: source.Details{
+					BookContextSkippedStored: 25,
+					BookContextEnriched:      2,
+				},
+			},
+		},
+	})
+
+	for _, want := range []string{
+		"book context skipped (already in DB): 25",
+		"book context enriched: 2",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("sync summary missing %q: %q", want, text)

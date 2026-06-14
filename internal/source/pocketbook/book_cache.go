@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const bookCacheAppDirName = "vocabulary-bot"
+const bookCacheAppDirName = "vocabulary-bot-cache"
 
 type BookCache struct {
 	dir    string

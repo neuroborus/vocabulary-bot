@@ -7,29 +7,42 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/neuroborus/vocabulary-bot/internal/source"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
+type BookContextResolver interface {
+	HasStoredBookLikeContext(ctx context.Context, rawWord string) (bool, error)
+}
+
 type Adapter struct {
-	client             *Client
-	logger             *slog.Logger
-	bookContextEnabled bool
-	bookCache          *BookCache
+	client              *Client
+	logger              *slog.Logger
+	bookContextEnabled  bool
+	bookCache           *BookCache
+	bookContextResolver BookContextResolver
+	bookContextStats    bookContextStats
+}
+
+type bookContextStats struct {
+	skippedStored int
+	enriched      int
 }
 
 type AdapterOptions struct {
-	BaseURL            string
-	Email              string
-	Password           string
-	RefreshToken       string
-	ShopName           string
-	HTTPClient         *http.Client
-	SessionStore       SessionStore
-	Logger             *slog.Logger
-	Now                func() time.Time
-	BookContextEnabled bool
-	BookCacheDir       string
-	BookCacheMax       int
+	BaseURL             string
+	Email               string
+	Password            string
+	RefreshToken        string
+	ShopName            string
+	HTTPClient          *http.Client
+	SessionStore        SessionStore
+	Logger              *slog.Logger
+	Now                 func() time.Time
+	BookContextEnabled  bool
+	BookCacheDir        string
+	BookCacheMax        int
+	BookContextResolver BookContextResolver
 }
 
 func NewAdapter(options AdapterOptions) *Adapter {
@@ -51,9 +64,10 @@ func NewAdapter(options AdapterOptions) *Adapter {
 	})
 
 	adapter := &Adapter{
-		client:             client,
-		logger:             logger,
-		bookContextEnabled: options.BookContextEnabled,
+		client:              client,
+		logger:              logger,
+		bookContextEnabled:  options.BookContextEnabled,
+		bookContextResolver: options.BookContextResolver,
 	}
 
 	if options.BookContextEnabled {
@@ -80,7 +94,15 @@ func (a *Adapter) Name() string {
 	return "pocketbook"
 }
 
+func (a *Adapter) SyncDetails() source.Details {
+	return source.Details{
+		BookContextSkippedStored: a.bookContextStats.skippedStored,
+		BookContextEnriched:      a.bookContextStats.enriched,
+	}
+}
+
 func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
+	a.bookContextStats = bookContextStats{}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

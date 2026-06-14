@@ -3,6 +3,7 @@ package vocabulary
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var usageExamplePattern = regexp.MustCompile(`^(.+?)\s+-\s+(.+)$`)
@@ -47,7 +48,7 @@ func IsUsageExampleLine(line string) bool {
 		return false
 	}
 
-	return containsLatinLetters(left) && len(Tokenize(left)) >= 3
+	return containsLatinLetters(left) && len(Tokenize(left)) >= 3 && containsCyrillicLetters(right)
 }
 
 func FormatUsageExampleLine(line string) string {
@@ -62,6 +63,15 @@ func FormatUsageExampleLine(line string) string {
 func containsLatinLetters(value string) bool {
 	for _, r := range value {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCyrillicLetters(value string) bool {
+	for _, r := range value {
+		if unicode.In(r, unicode.Cyrillic) {
 			return true
 		}
 	}

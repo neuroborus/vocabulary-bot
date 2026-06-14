@@ -27,9 +27,10 @@ type Summary struct {
 }
 
 type SourceSummary struct {
-	Name   string
-	Drafts int
-	Error  string
+	Name    string
+	Drafts  int
+	Error   string
+	Details source.Details
 }
 
 func NewService(adapters []source.Adapter, vocabularyService *vocabulary.Service, logger *slog.Logger) *Service {
@@ -68,6 +69,10 @@ func (s *Service) Run(ctx context.Context) (Summary, error) {
 				slog.String("error", logging.SanitizeError(err)),
 			)
 			continue
+		}
+
+		if detailsProvider, ok := adapter.(source.DetailsProvider); ok {
+			sourceSummary.Details = detailsProvider.SyncDetails()
 		}
 
 		summary.Sources = append(summary.Sources, sourceSummary)

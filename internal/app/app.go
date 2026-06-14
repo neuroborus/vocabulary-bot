@@ -40,7 +40,7 @@ func Run(ctx context.Context) error {
 
 	vocabularyService := vocabulary.NewService(repository, time.Now)
 
-	sources := buildSources(cfg, logger, sessionStore)
+	sources := buildSources(cfg, logger, sessionStore, vocabularyService)
 	syncService := syncer.NewService(sources, vocabularyService, logger)
 
 	logger.Info(
@@ -115,21 +115,22 @@ func buildStorage(ctx context.Context, cfg config.Config, logger *slog.Logger) (
 	return repository, mongostorage.NewPocketBookSessionStore(database), closeStorage, nil
 }
 
-func buildSources(cfg config.Config, logger *slog.Logger, sessionStore pocketbook.SessionStore) []source.Adapter {
+func buildSources(cfg config.Config, logger *slog.Logger, sessionStore pocketbook.SessionStore, vocabularyService *vocabulary.Service) []source.Adapter {
 	adapters := make([]source.Adapter, 0, 2)
 
 	if cfg.PocketBook.Enabled {
 		adapters = append(adapters, pocketbook.NewAdapter(pocketbook.AdapterOptions{
-			BaseURL:            cfg.PocketBook.BaseURL,
-			Email:              cfg.PocketBook.Email,
-			Password:           cfg.PocketBook.Password,
-			RefreshToken:       cfg.PocketBook.RefreshToken,
-			ShopName:           cfg.PocketBook.ShopName,
-			SessionStore:       sessionStore,
-			Logger:             logger,
-			BookContextEnabled: cfg.PocketBook.BookContextEnabled,
-			BookCacheDir:       cfg.PocketBook.BookCacheDir,
-			BookCacheMax:       cfg.PocketBook.BookCacheMax,
+			BaseURL:             cfg.PocketBook.BaseURL,
+			Email:               cfg.PocketBook.Email,
+			Password:            cfg.PocketBook.Password,
+			RefreshToken:        cfg.PocketBook.RefreshToken,
+			ShopName:            cfg.PocketBook.ShopName,
+			SessionStore:        sessionStore,
+			Logger:              logger,
+			BookContextEnabled:  cfg.PocketBook.BookContextEnabled,
+			BookCacheDir:        cfg.PocketBook.BookCacheDir,
+			BookCacheMax:        cfg.PocketBook.BookCacheMax,
+			BookContextResolver: vocabularyService,
 		}))
 	}
 

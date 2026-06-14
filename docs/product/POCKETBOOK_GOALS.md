@@ -352,7 +352,7 @@ Preferred source order for book sentence context:
 4. optional future EPUB/offs sentence backfill for pbr:/word dictionary notes
 ```
 
-This EPUB/offs backfill is implemented behind `POCKETBOOK_BOOK_CONTEXT_ENABLED`. During PocketBook sync the adapter processes each book sequentially: acquire the book file from the local cache (`$TMPDIR/vocabulary-bot/books` by default, override with `POCKETBOOK_BOOK_CACHE_DIR`), enrich dictionary-word drafts that still need a book sentence, update `lastUsedAt`, evict entries older than `POCKETBOOK_BOOK_CACHE_MAX` (default `2`), and remove stale cached versions when the same `bookId` gets a new `fast_hash`.
+This EPUB/offs backfill is implemented behind `POCKETBOOK_BOOK_CONTEXT_ENABLED`. During PocketBook sync the adapter processes each book sequentially: acquire the book file from the local cache (`$TMPDIR/vocabulary-bot-cache/books` by default, override with `POCKETBOOK_BOOK_CACHE_DIR`), enrich dictionary-word drafts that still need a book sentence, update `lastUsedAt`, evict entries older than `POCKETBOOK_BOOK_CACHE_MAX` (default `2`), and remove stale cached versions when the same `bookId` gets a new `fast_hash`. Words that already have a book-like sentence in Mongo are skipped during enrichment so reruns do not re-download or re-parse the book for them. The `/sync` Telegram summary reports `book context skipped (already in DB)` and `book context enriched` counters per source. Usage-example detection (`english - перевод`) requires Cyrillic on the translation side so book sentences with dashes are not misclassified.
 
 Discovery tooling for this area:
 

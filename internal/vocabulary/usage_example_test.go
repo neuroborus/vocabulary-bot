@@ -41,3 +41,14 @@ func TestNormalizeUsageExamplesBackfillsStoredItem(t *testing.T) {
 		t.Fatalf("contexts = %#v", item.Contexts)
 	}
 }
+
+func TestIsUsageExampleLineRequiresCyrillicTranslation(t *testing.T) {
+	t.Parallel()
+
+	if !IsUsageExampleLine("to lean on a friend's advice - полагаться на совет друга") {
+		t.Fatal("expected dictionary usage example with Russian translation")
+	}
+	if IsUsageExampleLine("But this man - this Guild-master - was nothing so simple as a crackpot.") {
+		t.Fatal("English book sentence with dashes should not be a usage example")
+	}
+}

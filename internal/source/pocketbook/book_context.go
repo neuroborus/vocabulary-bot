@@ -65,9 +65,21 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 
 	pending := make([]int, 0, len(drafts))
 	for index := range drafts {
-		if needsBookSentenceContext(drafts[index].draft, drafts[index].note) {
-			pending = append(pending, index)
+		entry := drafts[index]
+		if !needsBookSentenceContext(entry.draft, entry.note) {
+			continue
 		}
+		if a.hasStoredBookContext(ctx, entry.draft.RawWord) {
+			a.bookContextStats.skippedStored++
+			a.logger.Info(
+				"pocketbook book context enrichment skipped because stored context exists",
+				slog.String("book_id", book.ID),
+				slog.String("word", entry.draft.RawWord),
+			)
+			continue
+		}
+
+		pending = append(pending, index)
 	}
 	if len(pending) == 0 {
 		return
@@ -168,6 +180,7 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 		}
 
 		entry.draft.Contexts = appendUniqueContext(entry.draft.Contexts, sentence)
+		a.bookContextStats.enriched++
 		a.logger.Info(
 			"pocketbook book sentence context added",
 			slog.String("book_id", book.ID),
@@ -199,6 +212,24 @@ func sanitizeBookFileName(bookID string) string {
 	}
 
 	return builder.String()
+}
+
+func (a *Adapter) hasStoredBookContext(ctx context.Context, rawWord string) bool {
+	if a.bookContextResolver == nil {
+		return false
+	}
+
+	has, err := a.bookContextResolver.HasStoredBookLikeContext(ctx, rawWord)
+	if err != nil {
+		a.logger.Warn(
+			"pocketbook stored book context lookup failed",
+			slog.String("word", rawWord),
+			slog.String("error", err.Error()),
+		)
+		return false
+	}
+
+	return has
 }
 
 func parsedDraftsFromNotes(book Book, notes []Note) []parsedBookDraft {

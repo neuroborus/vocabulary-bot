@@ -99,6 +99,75 @@ func TestAdapterEnrichesDictionaryWordWithBookSentence(t *testing.T) {
 	}
 }
 
+func TestEnrichBookDraftsSkipsWhenStoredContextExists(t *testing.T) {
+	t.Parallel()
+
+	body := `<html><body><p>He had to lean against the wall.</p></body></html>`
+	epubPath := writeTestEPUB(t, body)
+	epubData, err := os.ReadFile(epubPath)
+	if err != nil {
+		t.Fatalf("read test epub: %v", err)
+	}
+
+	text, err := FlattenEPUB(epubPath)
+	if err != nil {
+		t.Fatalf("FlattenEPUB() error = %v", err)
+	}
+	offset := findSubstringOffset(text, "lean")
+
+	downloads := 0
+	cacheDir := t.TempDir()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloads++
+		_, _ = w.Write(epubData)
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BaseURL:      server.URL,
+		SessionStore: NewMemorySessionStore(Session{AccessToken: "access", AccessTokenExpiresAt: time.Now().Add(time.Hour)}),
+	})
+	cache, err := NewBookCache(BookCacheOptions{Dir: cacheDir, Max: 2})
+	if err != nil {
+		t.Fatalf("NewBookCache() error = %v", err)
+	}
+	adapter := &Adapter{
+		client:             client,
+		logger:             slog.New(slog.NewTextHandler(testWriter{t: t}, nil)),
+		bookContextEnabled: true,
+		bookCache:          cache,
+		bookContextResolver: fakeBookContextResolver{
+			words: map[string]bool{"lean": true},
+		},
+	}
+
+	book := Book{
+		ID:       "book-1",
+		Title:    "Necromancer",
+		FastHash: "hash-1",
+		Link:     "/download/book-1.epub",
+		MimeType: "application/epub+zip",
+	}
+	parsed := []parsedBookDraft{{
+		draft: vocabularyDraftLean(offset),
+		note: Note{
+			UUID:      "note-1",
+			Note:      &TextWithTime{Text: "Verb 1) опираться"},
+			Quotation: &Quotation{Text: "lean"},
+			Mark:      &Mark{Anchor: "pbr:/word?page=11&offs=" + strconv.Itoa(offset)},
+		},
+	}}
+
+	adapter.enrichBookDrafts(context.Background(), book, parsed)
+
+	if downloads != 0 {
+		t.Fatalf("downloads = %d, want 0", downloads)
+	}
+	if _, err := os.Stat(filepath.Join(cacheDir, cachedBookFileName(book))); !os.IsNotExist(err) {
+		t.Fatal("book should not be cached when stored context already exists")
+	}
+}
+
 func TestEnrichBookDraftsKeepsCachedBookFile(t *testing.T) {
 	t.Parallel()
 
@@ -185,4 +254,12 @@ func vocabularyDraftLean(offset int) vocabulary.Draft {
 
 func findSubstringOffset(text, needle string) int {
 	return strings.Index(text, needle)
+}
+
+type fakeBookContextResolver struct {
+	words map[string]bool
+}
+
+func (f fakeBookContextResolver) HasStoredBookLikeContext(ctx context.Context, rawWord string) (bool, error) {
+	return f.words[rawWord], nil
 }

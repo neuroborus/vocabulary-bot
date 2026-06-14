@@ -20,7 +20,7 @@ func TestDefaultBookCacheDirUsesSystemTemp(t *testing.T) {
 	if !strings.HasPrefix(dir, os.TempDir()) {
 		t.Fatalf("dir = %q, want prefix %q", dir, os.TempDir())
 	}
-	wantSuffix := filepath.Join("vocabulary-bot", "books")
+	wantSuffix := filepath.Join("vocabulary-bot-cache", "books")
 	if !strings.HasSuffix(dir, wantSuffix) {
 		t.Fatalf("dir = %q, want suffix %q", dir, wantSuffix)
 	}

@@ -63,6 +63,14 @@ func formatSyncSummary(summary syncer.Summary) string {
 				builder.WriteString("\n  ⚠️ ")
 				builder.WriteString(escapeHTML(source.Error))
 			}
+			if source.Details.BookContextSkippedStored > 0 {
+				builder.WriteString("\n  book context skipped (already in DB): ")
+				builder.WriteString(fmt.Sprintf("%d", source.Details.BookContextSkippedStored))
+			}
+			if source.Details.BookContextEnriched > 0 {
+				builder.WriteString("\n  book context enriched: ")
+				builder.WriteString(fmt.Sprintf("%d", source.Details.BookContextEnriched))
+			}
 		}
 	}
 
