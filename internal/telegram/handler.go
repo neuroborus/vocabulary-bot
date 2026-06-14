@@ -195,43 +195,13 @@ func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query Callback
 }
 
 func (h *CommandHandler) handlePush(ctx context.Context, commandChatID int64) error {
-	if h.repository == nil {
-		return h.sendHTMLMessage(ctx, commandChatID, formatError("Vocabulary repository is not configured", ""))
-	}
-
-	items, err := h.repository.List(ctx)
+	item, deliveryChatID, err := h.pushReviewWord(ctx, commandChatID)
 	if err != nil {
 		return h.sendHTMLMessage(ctx, commandChatID, formatError("Push failed", logging.SanitizeError(err)))
 	}
-
-	item, ok := review.SelectNext(items, h.now())
-	if !ok {
+	if item == nil {
 		return h.sendHTMLMessage(ctx, commandChatID, formatNotice("No review words available", ""))
 	}
-
-	now := h.now().UTC()
-	review.MarkPushed(&item, now)
-	item.UpdatedAt = now
-	if err := h.repository.Update(ctx, item); err != nil {
-		return h.sendHTMLMessage(ctx, commandChatID, formatError("Push failed", logging.SanitizeError(err)))
-	}
-
-	deliveryChatID := h.reviewDeliveryChatID(commandChatID)
-	if err := h.notifier.SendHTMLMessageWithKeyboard(
-		ctx,
-		deliveryChatID,
-		formatReviewReminder(item, h.reviewSpoilerTranslations),
-		reviewKeyboard(item.NormalizedKey),
-	); err != nil {
-		return h.sendHTMLMessage(ctx, commandChatID, formatError("Push failed", logging.SanitizeError(err)))
-	}
-
-	h.logger.Info(
-		"review word pushed",
-		slog.String("normalized_key", item.NormalizedKey),
-		slog.String("display_word", item.DisplayWord),
-		slog.Int64("delivery_chat_id", deliveryChatID),
-	)
 
 	if deliveryChatID != commandChatID {
 		return h.sendHTMLMessage(
@@ -242,6 +212,68 @@ func (h *CommandHandler) handlePush(ctx context.Context, commandChatID int64) er
 	}
 
 	return nil
+}
+
+// RunAutoPush sends one review word when notifications are enabled.
+func (h *CommandHandler) RunAutoPush(ctx context.Context) error {
+	if !h.notificationsEnabled {
+		h.logger.Info("scheduled push skipped because notifications are disabled")
+		return nil
+	}
+
+	item, _, err := h.pushReviewWord(ctx, h.allowedUserID)
+	if err != nil {
+		return err
+	}
+	if item == nil {
+		h.logger.Info("scheduled push skipped because no review words are available")
+		return nil
+	}
+
+	return nil
+}
+
+func (h *CommandHandler) pushReviewWord(ctx context.Context, commandChatID int64) (*vocabulary.Item, int64, error) {
+	if h.repository == nil {
+		return nil, 0, fmt.Errorf("vocabulary repository is not configured")
+	}
+
+	items, err := h.repository.List(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	item, ok := review.SelectNext(items, h.now())
+	if !ok {
+		return nil, 0, nil
+	}
+
+	now := h.now().UTC()
+	review.MarkPushed(&item, now)
+	item.UpdatedAt = now
+	if err := h.repository.Update(ctx, item); err != nil {
+		return nil, 0, err
+	}
+
+	deliveryChatID := h.reviewDeliveryChatID(commandChatID)
+	if err := h.notifier.SendHTMLMessageWithKeyboard(
+		ctx,
+		deliveryChatID,
+		formatReviewReminder(item, h.reviewSpoilerTranslations),
+		reviewKeyboard(item.NormalizedKey),
+	); err != nil {
+		return nil, 0, err
+	}
+
+	h.logger.Info(
+		"review word pushed",
+		slog.String("normalized_key", item.NormalizedKey),
+		slog.String("display_word", item.DisplayWord),
+		slog.Int64("delivery_chat_id", deliveryChatID),
+		slog.Bool("scheduled", commandChatID == h.allowedUserID),
+	)
+
+	return &item, deliveryChatID, nil
 }
 
 func (h *CommandHandler) reviewDeliveryChatID(commandChatID int64) int64 {
@@ -284,19 +316,54 @@ func (h *CommandHandler) healthText(ctx context.Context) string {
 }
 
 func (h *CommandHandler) handleSync(ctx context.Context, chatID int64) error {
-	if !h.syncEnabled {
+	summary, err := h.syncSources(ctx)
+	if err != nil {
+		return h.sendHTMLMessage(ctx, chatID, formatError("Sync failed", logging.SanitizeError(err)))
+	}
+	if summary == nil {
 		return h.sendHTMLMessage(ctx, chatID, formatNotice("Sync is disabled", "Use <code>/turn_on</code> first."))
 	}
+
+	return h.sendHTMLMessage(ctx, chatID, formatSyncSummary(*summary))
+}
+
+// RunAutoSync runs source synchronization when sync is enabled.
+func (h *CommandHandler) RunAutoSync(ctx context.Context) error {
+	summary, err := h.syncSources(ctx)
+	if err != nil {
+		return err
+	}
+	if summary == nil {
+		h.logger.Info("scheduled sync skipped because sync is disabled")
+		return nil
+	}
+
+	h.logger.Info(
+		"scheduled sync completed",
+		slog.Int("drafts_processed", summary.DraftsProcessed),
+		slog.Int("created", summary.Created),
+		slog.Int("updated", summary.Updated),
+		slog.Int("ambiguous", summary.Ambiguous),
+		slog.Int("source_errors", summary.SourceErrors),
+	)
+
+	return nil
+}
+
+func (h *CommandHandler) syncSources(ctx context.Context) (*syncer.Summary, error) {
+	if !h.syncEnabled {
+		return nil, nil
+	}
 	if h.syncRunner == nil {
-		return h.sendHTMLMessage(ctx, chatID, formatError("Sync service is not configured", ""))
+		return nil, fmt.Errorf("sync service is not configured")
 	}
 
 	summary, err := h.syncRunner.Run(ctx)
 	if err != nil {
-		return h.sendHTMLMessage(ctx, chatID, formatError("Sync failed", logging.SanitizeError(err)))
+		return nil, err
 	}
 
-	return h.sendHTMLMessage(ctx, chatID, formatSyncSummary(summary))
+	return &summary, nil
 }
 
 func (h *CommandHandler) handleListWords(ctx context.Context, chatID int64) error {

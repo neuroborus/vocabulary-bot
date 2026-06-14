@@ -14,8 +14,15 @@ type Config struct {
 	NotificationsEnabled bool
 	MongoDB              MongoDBConfig
 	Telegram             TelegramConfig
+	Schedule             ScheduleConfig
 	PocketBook           PocketBookConfig
 	GoogleSheet          GoogleSheetConfig
+}
+
+type ScheduleConfig struct {
+	Timezone     string
+	AutoSyncCron string
+	AutoPushCron string
 }
 
 type MongoDBConfig struct {
@@ -79,6 +86,11 @@ func Load() (Config, error) {
 			PollingEnabled:            getenvBool("TELEGRAM_POLLING_ENABLED", true),
 			ReviewSpoilerTranslations: getenvBool("TELEGRAM_REVIEW_SPOILER_TRANSLATIONS", true),
 		},
+		Schedule: ScheduleConfig{
+			Timezone:     getenv("SCHEDULE_TIMEZONE", ""),
+			AutoSyncCron: lookupEnvOrDefault("AUTO_SYNC_CRON", "0 9 * * *"),
+			AutoPushCron: lookupEnvOrDefault("AUTO_PUSH_CRON", "0 12-21/2 * * *"),
+		},
 		PocketBook: PocketBookConfig{
 			Enabled:            getenvBool("POCKETBOOK_SYNC_ENABLED", true),
 			Email:              firstEnv([]string{"POCKETBOOK_EMAIL", "POCKETBOOK_LOGIN"}, ""),
@@ -108,6 +120,15 @@ func getenv(key string, fallback string) string {
 	}
 
 	return value
+}
+
+func lookupEnvOrDefault(key string, fallback string) string {
+	raw, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+
+	return strings.TrimSpace(raw)
 }
 
 func firstEnv(keys []string, fallback string) string {

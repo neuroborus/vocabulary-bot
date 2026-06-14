@@ -9,6 +9,7 @@ import (
 
 	"github.com/neuroborus/vocabulary-bot/internal/config"
 	"github.com/neuroborus/vocabulary-bot/internal/logging"
+	"github.com/neuroborus/vocabulary-bot/internal/schedule"
 	"github.com/neuroborus/vocabulary-bot/internal/source"
 	"github.com/neuroborus/vocabulary-bot/internal/source/pocketbook"
 	"github.com/neuroborus/vocabulary-bot/internal/source/spreadsheet"
@@ -183,6 +184,43 @@ func runTelegram(
 		)
 	}
 
+	schedCtx, schedCancel := context.WithCancel(ctx)
+	defer schedCancel()
+	if err := startScheduler(schedCtx, cfg, handler, logger); err != nil {
+		return err
+	}
+
 	logger.Info("telegram polling started")
 	return bot.Poll(ctx)
+}
+
+func startScheduler(ctx context.Context, cfg config.Config, handler *telegram.CommandHandler, logger *slog.Logger) error {
+	jobs, err := schedule.JobsFromConfig(cfg.Schedule, handler, handler)
+	if err != nil {
+		return fmt.Errorf("build schedule jobs: %w", err)
+	}
+	if len(jobs) == 0 {
+		logger.Info("scheduler disabled because no cron jobs are configured")
+		return nil
+	}
+
+	runner, err := schedule.NewRunner(schedule.RunnerOptions{
+		Timezone: cfg.Schedule.Timezone,
+		Jobs:     jobs,
+		Logger:   logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Info(
+		"scheduler started",
+		slog.String("timezone", cfg.Schedule.Timezone),
+		slog.String("auto_sync_cron", cfg.Schedule.AutoSyncCron),
+		slog.String("auto_push_cron", cfg.Schedule.AutoPushCron),
+		slog.Int("jobs", len(jobs)),
+	)
+
+	go runner.Run(ctx)
+	return nil
 }
