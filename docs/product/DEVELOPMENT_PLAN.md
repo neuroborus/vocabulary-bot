@@ -700,7 +700,7 @@ All logs should be written to a file.
 Suggested path:
 
 ```text
-logs/app.log
+logs/vocabulary.log
 ```
 
 Logs should include:
@@ -734,23 +734,23 @@ Once per week, the system should:
 Recommended behavior:
 
 ```text
-- If sending logs succeeds: archive or clear logs/app.log.
+- If sending logs succeeds: archive or clear logs/vocabulary.log.
 - If sending logs fails: keep the file and retry on the next scheduled run.
 ```
 
 Simple MVP approach:
 
 ```text
-logs/app.log
-logs/archive/app-YYYY-MM-DD.log
+logs/vocabulary.log
+logs/archive/vocabulary-YYYY-MM-DD.log
 ```
 
 Weekly job:
 
 ```text
-1. Copy logs/app.log to logs/archive/app-YYYY-MM-DD.log.
+1. Copy logs/vocabulary.log to logs/archive/vocabulary-YYYY-MM-DD.log.
 2. Send archived file to Telegram.
-3. If Telegram delivery succeeds, truncate logs/app.log.
+3. If Telegram delivery succeeds, truncate logs/vocabulary.log.
 ```
 
 ---

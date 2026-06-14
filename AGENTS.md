@@ -88,7 +88,7 @@ internal/vocabulary -> standard library only
 - Runtime config belongs in `internal/config`.
 - Update `.env.example` when adding or renaming env vars.
 - Never commit production secrets, Telegram tokens, Google service account JSON, PocketBook credentials, refresh tokens, cookies, or raw credential-bearing payloads.
-- Logs are written in English and default to `logs/app.log`.
+- Logs are written in English and default to `logs/vocabulary.log`.
 - Do not log secrets or full raw provider responses that may contain credentials.
 
 ## Go Conventions

@@ -105,7 +105,7 @@ Expected result: no matches. If matches appear, replace them with obviously arti
 ## 6. Logging and operations review
 
 - [ ] Logs are written in English.
-- [ ] File logging still defaults to `logs/app.log`.
+- [ ] File logging still defaults to `logs/vocabulary.log`.
 - [ ] `/health`, `/list-words`, `/turn-off`, `/turn-on`, `/sync`, `/push`, and `/logs` remain the intended Telegram command surface.
 - [ ] Weekly log delivery/rotation behavior is preserved if touched: clear or rotate only after successful Telegram delivery.
 - [ ] Operational errors include enough context to debug without leaking secrets.

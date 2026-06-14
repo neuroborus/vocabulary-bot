@@ -8,7 +8,7 @@ import (
 
 func NewFileLogger(path string) (*slog.Logger, func() error, error) {
 	if path == "" {
-		path = "logs/app.log"
+		path = "logs/vocabulary.log"
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

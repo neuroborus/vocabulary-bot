@@ -62,7 +62,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		AppEnv:               getenv("APP_ENV", "local"),
-		LogPath:              getenv("LOG_PATH", "logs/app.log"),
+		LogPath:              getenv("LOG_PATH", "logs/vocabulary.log"),
 		SyncEnabled:          getenvBool("SYNC_ENABLED", true),
 		NotificationsEnabled: getenvBool("NOTIFICATIONS_ENABLED", true),
 		MongoDB: MongoDBConfig{

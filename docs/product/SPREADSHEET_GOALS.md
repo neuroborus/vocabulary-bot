@@ -682,7 +682,7 @@ All logs must be saved to a file.
 Recommended path:
 
 ```text
-logs/app.log
+logs/vocabulary.log
 ```
 
 Weekly behavior:
