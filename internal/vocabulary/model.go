@@ -35,19 +35,28 @@ type Form struct {
 }
 
 type SourceAnchor struct {
-	Source         Source    `json:"source" bson:"source"`
-	ExternalID     string    `json:"externalId,omitempty" bson:"externalId,omitempty"`
-	RowNumber      int       `json:"rowNumber,omitempty" bson:"rowNumber,omitempty"`
-	SheetName      string    `json:"sheetName,omitempty" bson:"sheetName,omitempty"`
-	BookID         string    `json:"bookId,omitempty" bson:"bookId,omitempty"`
-	BookTitle      string    `json:"bookTitle,omitempty" bson:"bookTitle,omitempty"`
-	Author         string    `json:"author,omitempty" bson:"author,omitempty"`
-	SourceLabel    string    `json:"sourceLabel,omitempty" bson:"sourceLabel,omitempty"`
-	RowFingerprint string    `json:"rowFingerprint,omitempty" bson:"rowFingerprint,omitempty"`
-	Page           string    `json:"page,omitempty" bson:"page,omitempty"`
-	Position       string    `json:"position,omitempty" bson:"position,omitempty"`
-	FirstSeenAt    time.Time `json:"firstSeenAt" bson:"firstSeenAt"`
-	LastSeenAt     time.Time `json:"lastSeenAt" bson:"lastSeenAt"`
+	Source         Source            `json:"source" bson:"source"`
+	ExternalID     string            `json:"externalId,omitempty" bson:"externalId,omitempty"`
+	RowNumber      int               `json:"rowNumber,omitempty" bson:"rowNumber,omitempty"`
+	SheetName      string            `json:"sheetName,omitempty" bson:"sheetName,omitempty"`
+	BookID         string            `json:"bookId,omitempty" bson:"bookId,omitempty"`
+	BookTitle      string            `json:"bookTitle,omitempty" bson:"bookTitle,omitempty"`
+	Author         string            `json:"author,omitempty" bson:"author,omitempty"`
+	SourceLabel    string            `json:"sourceLabel,omitempty" bson:"sourceLabel,omitempty"`
+	RowFingerprint string            `json:"rowFingerprint,omitempty" bson:"rowFingerprint,omitempty"`
+	RowSnapshot    *SheetRowSnapshot `json:"rowSnapshot,omitempty" bson:"rowSnapshot,omitempty"`
+	Page           string            `json:"page,omitempty" bson:"page,omitempty"`
+	Position       string            `json:"position,omitempty" bson:"position,omitempty"`
+	FirstSeenAt    time.Time         `json:"firstSeenAt" bson:"firstSeenAt"`
+	LastSeenAt     time.Time         `json:"lastSeenAt" bson:"lastSeenAt"`
+}
+
+type SheetRowSnapshot struct {
+	RawWord      string   `json:"rawWord" bson:"rawWord"`
+	Translations []string `json:"translations,omitempty" bson:"translations,omitempty"`
+	Contexts     []string `json:"contexts,omitempty" bson:"contexts,omitempty"`
+	Notes        []string `json:"notes,omitempty" bson:"notes,omitempty"`
+	Tags         []string `json:"tags,omitempty" bson:"tags,omitempty"`
 }
 
 type ReviewState struct {

@@ -72,16 +72,12 @@ func (s *Service) MergeDraft(ctx context.Context, draft Draft) (MergeOutcome, er
 				}, nil
 			}
 
-			MergeIntoItem(&item, draft, now)
-			if err := s.repository.Update(ctx, item); err != nil {
-				return MergeOutcome{}, fmt.Errorf("update vocabulary item: %w", err)
+			_, outcome, err := s.applySheetRowUpdate(ctx, item, draft, now)
+			if err != nil {
+				return MergeOutcome{}, err
 			}
 
-			return MergeOutcome{
-				NormalizedKey: item.NormalizedKey,
-				LookupKeys:    item.LookupKeys,
-				Updated:       true,
-			}, nil
+			return outcome, nil
 		}
 	}
 
@@ -326,6 +322,7 @@ func normalizeAnchor(draft Draft, now time.Time) SourceAnchor {
 	}
 	if anchor.Source == SourceGoogleSheet {
 		anchor.RowFingerprint = DraftFingerprint(draft)
+		anchor.RowSnapshot = sheetRowSnapshotFromDraft(draft)
 	}
 
 	return anchor
@@ -351,6 +348,9 @@ func mergeAnchor(item *Item, incoming SourceAnchor, now time.Time) {
 			}
 			if incoming.RowFingerprint != "" {
 				item.Anchors[index].RowFingerprint = incoming.RowFingerprint
+			}
+			if incoming.RowSnapshot != nil {
+				item.Anchors[index].RowSnapshot = incoming.RowSnapshot
 			}
 			return
 		}

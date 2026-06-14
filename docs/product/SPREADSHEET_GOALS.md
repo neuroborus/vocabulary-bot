@@ -585,6 +585,8 @@ Recommended sync flow:
 
 Unchanged-row skip uses `sheetName + rowNumber` plus a stored `rowFingerprint` on the sheet anchor (`word`, `translations`, `contexts`, `note`, `tags`). The full range is still read every sync so edits to existing rows are detected.
 
+When a stored sheet row changes, the merge replaces that row's previous contribution using a stored `rowSnapshot` on the anchor instead of append-only updates. PocketBook data on the same item is preserved; if the edited word now matches another vocabulary item, the row anchor moves to that item.
+
 Column names should be case-insensitive:
 
 ```text

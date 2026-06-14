@@ -138,6 +138,25 @@ func (r *VocabularyRepository) Update(ctx context.Context, item vocabulary.Item)
 	return nil
 }
 
+func (r *VocabularyRepository) Replace(ctx context.Context, item vocabulary.Item, previousNormalizedKey string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(previousNormalizedKey) == "" {
+		return fmt.Errorf("previous normalized key is required")
+	}
+
+	result, err := r.collection.ReplaceOne(ctx, bson.M{"normalizedKey": previousNormalizedKey}, item)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("vocabulary item %q not found", previousNormalizedKey)
+	}
+
+	return nil
+}
+
 func (r *VocabularyRepository) List(ctx context.Context) ([]vocabulary.Item, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

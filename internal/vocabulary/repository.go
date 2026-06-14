@@ -7,5 +7,6 @@ type Repository interface {
 	FindBySheetRow(ctx context.Context, sheetName string, rowNumber int) (Item, bool, error)
 	Create(ctx context.Context, item Item) error
 	Update(ctx context.Context, item Item) error
+	Replace(ctx context.Context, item Item, previousNormalizedKey string) error
 	List(ctx context.Context) ([]Item, error)
 }

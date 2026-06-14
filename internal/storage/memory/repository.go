@@ -115,6 +115,24 @@ func (r *VocabularyRepository) Update(ctx context.Context, item vocabulary.Item)
 	return nil
 }
 
+func (r *VocabularyRepository) Replace(ctx context.Context, item vocabulary.Item, previousNormalizedKey string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if previousNormalizedKey == "" {
+		return fmt.Errorf("previous normalized key is required")
+	}
+
+	delete(r.items, previousNormalizedKey)
+	r.items[item.NormalizedKey] = cloneItem(item)
+
+	return nil
+}
+
 func (r *VocabularyRepository) List(ctx context.Context) ([]vocabulary.Item, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -151,6 +169,16 @@ func cloneItem(item vocabulary.Item) vocabulary.Item {
 	item.Notes = append([]string(nil), item.Notes...)
 	item.Tags = append([]string(nil), item.Tags...)
 	item.Anchors = append([]vocabulary.SourceAnchor(nil), item.Anchors...)
+	for index := range item.Anchors {
+		if item.Anchors[index].RowSnapshot != nil {
+			snapshot := *item.Anchors[index].RowSnapshot
+			snapshot.Translations = append([]string(nil), snapshot.Translations...)
+			snapshot.Contexts = append([]string(nil), snapshot.Contexts...)
+			snapshot.Notes = append([]string(nil), snapshot.Notes...)
+			snapshot.Tags = append([]string(nil), snapshot.Tags...)
+			item.Anchors[index].RowSnapshot = &snapshot
+		}
+	}
 
 	return item
 }

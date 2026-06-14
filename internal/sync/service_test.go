@@ -172,4 +172,10 @@ func TestMergeDraftUpdatesExistingSheetRowWhenWordChanges(t *testing.T) {
 	if items[0].Anchors[0].RowFingerprint != vocabulary.DraftFingerprint(replacement) {
 		t.Fatalf("RowFingerprint = %q, want %q", items[0].Anchors[0].RowFingerprint, vocabulary.DraftFingerprint(replacement))
 	}
+	if items[0].DisplayWord != "gauge" {
+		t.Fatalf("DisplayWord = %q, want gauge", items[0].DisplayWord)
+	}
+	if items[0].NormalizedKey != "gauge" {
+		t.Fatalf("NormalizedKey = %q, want gauge", items[0].NormalizedKey)
+	}
 }
