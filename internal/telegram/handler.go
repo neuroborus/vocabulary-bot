@@ -267,13 +267,6 @@ func (h *CommandHandler) pushReviewWord(ctx context.Context, commandChatID int64
 		return nil, 0, nil
 	}
 
-	now := h.now().UTC()
-	review.MarkPushed(&item, now)
-	item.UpdatedAt = now
-	if err := h.repository.Update(ctx, item); err != nil {
-		return nil, 0, err
-	}
-
 	deliveryChatID := h.reviewDeliveryChatID(commandChatID)
 	if err := h.notifier.SendHTMLMessageWithKeyboard(
 		ctx,
@@ -281,6 +274,13 @@ func (h *CommandHandler) pushReviewWord(ctx context.Context, commandChatID int64
 		formatReviewReminder(item, h.reviewSpoilerTranslations),
 		reviewKeyboard(item.NormalizedKey),
 	); err != nil {
+		return nil, 0, err
+	}
+
+	now := h.now().UTC()
+	review.MarkPushed(&item, now)
+	item.UpdatedAt = now
+	if err := h.repository.Update(ctx, item); err != nil {
 		return nil, 0, err
 	}
 

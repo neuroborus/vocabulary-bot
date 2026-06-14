@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -277,6 +278,56 @@ func TestCommandHandlerPushSendsReviewWordToReviewChat(t *testing.T) {
 	}
 }
 
+func TestCommandHandlerPushDoesNotMarkPushedWhenDeliveryFails(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repository := memory.NewVocabularyRepository()
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	service := vocabulary.NewService(repository, func() time.Time { return now })
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:       vocabulary.SourcePocketBook,
+		RawWord:      "to decelerate",
+		Translations: []string{"замедляться"},
+	}); err != nil {
+		t.Fatalf("seed vocabulary: %v", err)
+	}
+
+	notifier := &fakeNotifier{keyboardMessageErr: fmt.Errorf("telegram unavailable")}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:      notifier,
+		Repository:    repository,
+		AllowedUserID: 42,
+		Now:           func() time.Time { return now },
+	})
+
+	if err := handler.HandleMessage(ctx, Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: CommandPush,
+	}); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+
+	if len(notifier.messages) != 1 {
+		t.Fatalf("messages = %d, want 1 error reply", len(notifier.messages))
+	}
+	if !strings.Contains(notifier.messages[0].text, "Push failed") {
+		t.Fatalf("error reply = %q", notifier.messages[0].text)
+	}
+
+	items, err := repository.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if items[0].Review.LastPushedAt != nil {
+		t.Fatal("LastPushedAt must stay unset when Telegram delivery fails")
+	}
+	if items[0].Review.PushCount != 0 {
+		t.Fatalf("PushCount = %d, want 0", items[0].Review.PushCount)
+	}
+}
+
 func TestCommandHandlerPushSendsReviewWord(t *testing.T) {
 	t.Parallel()
 
@@ -537,12 +588,13 @@ func (r *fakeSyncRunner) Run(ctx context.Context) (syncer.Summary, error) {
 }
 
 type fakeNotifier struct {
-	messages          []fakeMessage
-	editedMessages    []fakeEditedMessage
-	documents         []fakeDocument
-	callbackResponses []fakeCallbackResponse
-	chatActions       []fakeChatAction
-	documentErr       error
+	messages           []fakeMessage
+	editedMessages     []fakeEditedMessage
+	documents          []fakeDocument
+	callbackResponses  []fakeCallbackResponse
+	chatActions        []fakeChatAction
+	documentErr        error
+	keyboardMessageErr error
 }
 
 type fakeChatAction struct {
@@ -583,6 +635,10 @@ func (n *fakeNotifier) SendHTMLMessage(ctx context.Context, chatID int64, text s
 }
 
 func (n *fakeNotifier) SendHTMLMessageWithKeyboard(ctx context.Context, chatID int64, text string, keyboard InlineKeyboardMarkup) error {
+	if n.keyboardMessageErr != nil {
+		return n.keyboardMessageErr
+	}
+
 	keyboardCopy := keyboard
 	return n.recordMessage(ctx, chatID, text, &keyboardCopy)
 }
