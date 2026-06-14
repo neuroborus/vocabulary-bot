@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 )
 
 const defaultAPIBaseURL = "https://api.telegram.org"
@@ -296,8 +298,7 @@ func (c *Client) doJSON(req *http.Request, target any) error {
 	defer response.Body.Close()
 
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
-		return fmt.Errorf("telegram http error %s", response.Status)
+		return telegramHTTPError(response)
 	}
 
 	decoder := json.NewDecoder(response.Body)
@@ -306,6 +307,30 @@ func (c *Client) doJSON(req *http.Request, target any) error {
 	}
 
 	return nil
+}
+
+func telegramHTTPError(response *http.Response) error {
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+	if description := parseTelegramErrorDescription(body); description != "" {
+		return fmt.Errorf(
+			"telegram http error %s: %s",
+			response.Status,
+			logging.SanitizeString(description),
+		)
+	}
+
+	return fmt.Errorf("telegram http error %s", response.Status)
+}
+
+func parseTelegramErrorDescription(body []byte) string {
+	var payload struct {
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(payload.Description)
 }
 
 type apiResponse[T any] struct {

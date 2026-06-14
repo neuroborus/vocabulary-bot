@@ -72,6 +72,56 @@ func TestClientSendHTMLMessageSetsParseMode(t *testing.T) {
 	}
 }
 
+func TestClientHTTPErrorIncludesAPIDescription(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"ok":false,"error_code":400,"description":"Bad Request: BUTTON_DATA_INVALID"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	err := client.SendMessage(context.Background(), 42, "plain text")
+	if err == nil {
+		t.Fatal("SendMessage() error = nil, want HTTP error")
+	}
+	if !strings.Contains(err.Error(), "400") {
+		t.Fatalf("error = %v, want HTTP status", err)
+	}
+	if !strings.Contains(err.Error(), "BUTTON_DATA_INVALID") {
+		t.Fatalf("error = %v, want telegram description", err)
+	}
+}
+
+func TestClientHTTPErrorWithoutJSONBody(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte("upstream unavailable"))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	err := client.SendMessage(context.Background(), 42, "plain text")
+	if err == nil {
+		t.Fatal("SendMessage() error = nil, want HTTP error")
+	}
+	if !strings.Contains(err.Error(), "502") {
+		t.Fatalf("error = %v, want HTTP status", err)
+	}
+	if strings.Contains(err.Error(), "upstream unavailable") {
+		t.Fatalf("error = %v, want status only without raw body", err)
+	}
+}
+
 func TestClientSendMessageWithoutParseMode(t *testing.T) {
 	t.Parallel()
 

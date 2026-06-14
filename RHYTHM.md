@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- Telegram HTTP failures now decode the Bot API `description` field when present and include the sanitized text in returned errors.
 - `normalizeBookText` now tracks newline state in O(1) instead of calling `builder.String()` inside the rune loop when flattening large EPUBs.
 - Book cache downloads now rely on `Client.DownloadFile` for atomic temp-file handling instead of adding a second `.partial` rename layer on top of the client's `.part` file.
 - `DefaultLogPath` now lives in `internal/config`, so config loading no longer imports the logging package.
