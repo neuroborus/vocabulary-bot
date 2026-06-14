@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
@@ -120,7 +121,7 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 			"pocketbook book download failed",
 			slog.String("book_id", book.ID),
 			slog.String("title", book.Title),
-			slog.String("error", err.Error()),
+			slog.String("error", logging.SanitizeError(err)),
 		)
 		return
 	}
@@ -132,7 +133,7 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 			slog.String("book_id", book.ID),
 			slog.String("title", book.Title),
 			slog.String("format", bookTextFormat(book)),
-			slog.String("error", err.Error()),
+			slog.String("error", logging.SanitizeError(err)),
 		)
 		return
 	}
@@ -224,7 +225,7 @@ func (a *Adapter) hasStoredBookContext(ctx context.Context, rawWord string) bool
 		a.logger.Warn(
 			"pocketbook stored book context lookup failed",
 			slog.String("word", rawWord),
-			slog.String("error", err.Error()),
+			slog.String("error", logging.SanitizeError(err)),
 		)
 		return false
 	}
@@ -270,7 +271,7 @@ func fetchBookNotes(ctx context.Context, client *Client, book Book, noteIDs []No
 				"pocketbook note fetch failed",
 				slog.String("book_id", book.ID),
 				slog.String("note_uuid", noteID.UUID),
-				slog.String("error", err.Error()),
+				slog.String("error", logging.SanitizeError(err)),
 			)
 			continue
 		}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 	"github.com/neuroborus/vocabulary-bot/internal/source"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
@@ -80,7 +81,7 @@ func NewAdapter(options AdapterOptions) *Adapter {
 		if err != nil {
 			logger.Warn(
 				"pocketbook book cache disabled",
-				slog.String("error", err.Error()),
+				slog.String("error", logging.SanitizeError(err)),
 			)
 		} else {
 			adapter.bookCache = bookCache
@@ -129,7 +130,7 @@ func (a *Adapter) Sync(ctx context.Context) ([]vocabulary.Draft, error) {
 				"pocketbook book sync failed",
 				slog.String("book_id", book.ID),
 				slog.String("title", book.Title),
-				slog.String("error", err.Error()),
+				slog.String("error", logging.SanitizeError(err)),
 			)
 			continue
 		}

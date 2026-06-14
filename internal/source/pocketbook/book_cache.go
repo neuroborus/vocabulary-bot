@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 )
 
 const bookCacheAppDirName = "vocabulary-bot-cache"
@@ -102,7 +104,7 @@ func (c *BookCache) Acquire(ctx context.Context, client *Client, book Book, down
 		c.logger.Warn(
 			"pocketbook book cache eviction failed",
 			slog.String("book_id", book.ID),
-			slog.String("error", err.Error()),
+			slog.String("error", logging.SanitizeError(err)),
 		)
 	}
 

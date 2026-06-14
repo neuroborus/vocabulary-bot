@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 )
 
 type Job struct {
@@ -92,7 +94,7 @@ func (r *Runner) evaluate(ctx context.Context, now time.Time) {
 			r.logger.Error(
 				"scheduled job failed",
 				slog.String("job", job.Name),
-				slog.String("error", err.Error()),
+				slog.String("error", logging.SanitizeError(err)),
 			)
 			continue
 		}

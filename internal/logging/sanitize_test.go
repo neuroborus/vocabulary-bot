@@ -26,6 +26,11 @@ func TestSanitizeStringRedactsSensitiveValues(t *testing.T) {
 			want:  `invalid token ***:*** in request`,
 		},
 		{
+			name:  "telegram bot url",
+			input: `Get "https://api.telegram.org/bot1234567890:FAKE_TELEGRAM_BOT_TOKEN_FOR_TEST_ONLY/getUpdates?timeout=25": context canceled`,
+			want:  `Get "https://api.telegram.org/bot***/getUpdates?timeout=25": context canceled`,
+		},
+		{
 			name:  "query params",
 			input: `POST /auth/login?username=test-user@example.test&password=FAKE_PASSWORD_FOR_TEST_ONLY&refresh_token=FAKE_REFRESH_TOKEN_FOR_TEST_ONLY`,
 			want:  `POST /auth/login?username=test-user@example.test&password=***&refresh_token=***`,
@@ -34,6 +39,16 @@ func TestSanitizeStringRedactsSensitiveValues(t *testing.T) {
 			name:  "json tokens",
 			input: `{"access_token":"FAKE_ACCESS_TOKEN_FOR_TEST_ONLY","refresh_token":"FAKE_REFRESH_TOKEN_FOR_TEST_ONLY","password":"FAKE_PASSWORD_FOR_TEST_ONLY"}`,
 			want:  `{"access_token":"***","refresh_token":"***","password":"***"}`,
+		},
+		{
+			name:  "service account private key json",
+			input: `{"private_key":"-----BEGIN PRIVATE KEY-----\nFAKE\n-----END PRIVATE KEY-----\n","private_key_id":"34b80532e087e76baeda9a3de25ffcde0976840b"}`,
+			want:  `{"private_key":"***","private_key_id":"***"}`,
+		},
+		{
+			name:  "google api details blob",
+			input: "googleapi: Error 403: API disabled\nDetails:\n[{\"reason\":\"SERVICE_DISABLED\"}]",
+			want:  "googleapi: Error 403: API disabled",
 		},
 		{
 			name:  "plain text unchanged",
@@ -51,5 +66,18 @@ func TestSanitizeStringRedactsSensitiveValues(t *testing.T) {
 				t.Fatalf("SanitizeString() = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestSanitizeStringTruncatesVeryLongMessages(t *testing.T) {
+	t.Parallel()
+
+	input := "x" + string(make([]byte, maxSanitizedStringLen)) + "tail"
+	got := SanitizeString(input)
+	if len(got) <= maxSanitizedStringLen {
+		t.Fatalf("expected truncated output longer than limit marker, got len=%d", len(got))
+	}
+	if got[len(got)-len("...[truncated]"):] != "...[truncated]" {
+		t.Fatalf("missing truncation marker: %q", got[len(got)-20:])
 	}
 }

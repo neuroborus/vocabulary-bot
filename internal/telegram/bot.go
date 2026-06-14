@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/neuroborus/vocabulary-bot/internal/logging"
 )
 
 type Bot struct {
@@ -34,7 +36,7 @@ func (b *Bot) Poll(ctx context.Context) error {
 
 		updates, err := b.client.GetUpdates(ctx, offset, 25)
 		if err != nil {
-			b.logger.Error("telegram getUpdates failed", slog.String("error", err.Error()))
+			b.logger.Error("telegram getUpdates failed", slog.String("error", logging.SanitizeError(err)))
 			if err := sleepWithContext(ctx, 5*time.Second); err != nil {
 				return err
 			}
@@ -47,7 +49,7 @@ func (b *Bot) Poll(ctx context.Context) error {
 			}
 			if update.CallbackQuery != nil {
 				if err := b.handler.HandleCallbackQuery(ctx, *update.CallbackQuery); err != nil {
-					b.logger.Error("telegram callback failed", slog.String("error", err.Error()))
+					b.logger.Error("telegram callback failed", slog.String("error", logging.SanitizeError(err)))
 				}
 				continue
 			}
@@ -55,7 +57,7 @@ func (b *Bot) Poll(ctx context.Context) error {
 				continue
 			}
 			if err := b.handler.HandleMessage(ctx, *update.Message); err != nil {
-				b.logger.Error("telegram command failed", slog.String("error", err.Error()))
+				b.logger.Error("telegram command failed", slog.String("error", logging.SanitizeError(err)))
 			}
 		}
 	}
