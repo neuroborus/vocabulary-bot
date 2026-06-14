@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neuroborus/vocabulary-bot/internal/logging"
@@ -28,6 +29,8 @@ type CommandHandler struct {
 	reviewChatID              int64
 	reviewSpoilerTranslations bool
 	logPath                   string
+	stateMu                   sync.RWMutex
+	syncMu                    sync.Mutex
 	syncEnabled               bool
 	notificationsEnabled      bool
 	reviewSelection           review.SelectionOptions
@@ -121,12 +124,10 @@ func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID int64, comm
 	case CommandLogs:
 		return h.handleLogs(ctx, chatID)
 	case CommandTurnOff:
-		h.syncEnabled = false
-		h.notificationsEnabled = false
+		h.setRuntimeFlags(false, false)
 		return h.sendHTMLMessage(ctx, chatID, formatNotice("Sync and notifications disabled", ""))
 	case CommandTurnOn:
-		h.syncEnabled = true
-		h.notificationsEnabled = true
+		h.setRuntimeFlags(true, true)
 		return h.sendHTMLMessage(ctx, chatID, formatNotice("Sync and notifications enabled", ""))
 	case CommandPush:
 		return h.handlePush(ctx, chatID)
@@ -235,7 +236,7 @@ func (h *CommandHandler) handlePush(ctx context.Context, commandChatID int64) er
 
 // RunAutoPush sends one review word when notifications are enabled.
 func (h *CommandHandler) RunAutoPush(ctx context.Context) error {
-	if !h.notificationsEnabled {
+	if !h.notificationsEnabledState() {
 		h.logger.Info("scheduled push skipped because notifications are disabled")
 		return nil
 	}
@@ -340,7 +341,7 @@ func (h *CommandHandler) healthText(ctx context.Context) string {
 		}
 	}
 
-	return formatHealthMessage(status, wordCount, h.syncEnabled, h.notificationsEnabled)
+	return formatHealthMessage(status, wordCount, h.syncEnabledState(), h.notificationsEnabledState())
 }
 
 func (h *CommandHandler) handleSync(ctx context.Context, chatID int64) error {
@@ -378,13 +379,35 @@ func (h *CommandHandler) RunAutoSync(ctx context.Context) error {
 	return nil
 }
 
+func (h *CommandHandler) setRuntimeFlags(syncEnabled, notificationsEnabled bool) {
+	h.stateMu.Lock()
+	defer h.stateMu.Unlock()
+	h.syncEnabled = syncEnabled
+	h.notificationsEnabled = notificationsEnabled
+}
+
+func (h *CommandHandler) syncEnabledState() bool {
+	h.stateMu.RLock()
+	defer h.stateMu.RUnlock()
+	return h.syncEnabled
+}
+
+func (h *CommandHandler) notificationsEnabledState() bool {
+	h.stateMu.RLock()
+	defer h.stateMu.RUnlock()
+	return h.notificationsEnabled
+}
+
 func (h *CommandHandler) syncSources(ctx context.Context) (*syncer.Summary, error) {
-	if !h.syncEnabled {
+	if !h.syncEnabledState() {
 		return nil, nil
 	}
 	if h.syncRunner == nil {
 		return nil, fmt.Errorf("sync service is not configured")
 	}
+
+	h.syncMu.Lock()
+	defer h.syncMu.Unlock()
 
 	summary, err := h.syncRunner.Run(ctx)
 	if err != nil {
@@ -451,7 +474,7 @@ func (h *CommandHandler) handleLogs(ctx context.Context, chatID int64) error {
 // RunAutoLogs sends the active log file to the allowed admin user and truncates
 // it only after Telegram delivery succeeds.
 func (h *CommandHandler) RunAutoLogs(ctx context.Context) error {
-	if !h.notificationsEnabled {
+	if !h.notificationsEnabledState() {
 		h.logger.Info("scheduled log delivery skipped because notifications are disabled")
 		return nil
 	}

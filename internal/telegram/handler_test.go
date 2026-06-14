@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -441,6 +442,38 @@ func TestCommandHandlerReviewCallbackEasy(t *testing.T) {
 	}
 }
 
+func TestSyncSourcesRunsOneAtATime(t *testing.T) {
+	t.Parallel()
+
+	runner := &fakeSyncRunner{runDelay: 20 * time.Millisecond}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		SyncRunner:  runner,
+		SyncEnabled: true,
+	})
+
+	const workers = 4
+	errCh := make(chan error, workers)
+	for range workers {
+		go func() {
+			_, err := handler.syncSources(context.Background())
+			errCh <- err
+		}()
+	}
+
+	for range workers {
+		if err := <-errCh; err != nil {
+			t.Fatalf("syncSources() error = %v", err)
+		}
+	}
+
+	if runner.calls != workers {
+		t.Fatalf("calls = %d, want %d", runner.calls, workers)
+	}
+	if runner.peakActive != 1 {
+		t.Fatalf("peakActive = %d, want 1", runner.peakActive)
+	}
+}
+
 func TestCommandHandlerTurnOffBlocksSync(t *testing.T) {
 	t.Parallel()
 
@@ -574,8 +607,12 @@ func TestRunAutoLogsSkipsWhenNotificationsDisabled(t *testing.T) {
 }
 
 type fakeSyncRunner struct {
-	calls   int
-	summary syncer.Summary
+	calls      int
+	summary    syncer.Summary
+	runDelay   time.Duration
+	active     int
+	peakActive int
+	mu         sync.Mutex
 }
 
 func (r *fakeSyncRunner) Run(ctx context.Context) (syncer.Summary, error) {
@@ -583,7 +620,22 @@ func (r *fakeSyncRunner) Run(ctx context.Context) (syncer.Summary, error) {
 		return syncer.Summary{}, err
 	}
 
+	r.mu.Lock()
+	r.active++
+	if r.active > r.peakActive {
+		r.peakActive = r.active
+	}
+	r.mu.Unlock()
+
+	if r.runDelay > 0 {
+		time.Sleep(r.runDelay)
+	}
+
+	r.mu.Lock()
 	r.calls++
+	r.active--
+	r.mu.Unlock()
+
 	return r.summary, nil
 }
 
