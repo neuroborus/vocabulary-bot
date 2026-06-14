@@ -91,7 +91,7 @@ func (c *BookCache) Acquire(ctx context.Context, client *Client, book Book, down
 		return bookPath, nil
 	}
 
-	if err := c.download(ctx, client, downloadURL, bookPath); err != nil {
+	if err := client.DownloadFile(ctx, downloadURL, bookPath); err != nil {
 		return "", err
 	}
 
@@ -190,21 +190,6 @@ func (c *BookCache) touch(metaPath string, book Book) error {
 	}
 
 	return os.WriteFile(metaPath, data, 0o600)
-}
-
-func (c *BookCache) download(ctx context.Context, client *Client, downloadURL, destination string) error {
-	partial := destination + ".partial"
-	if err := client.DownloadFile(ctx, downloadURL, partial); err != nil {
-		_ = os.Remove(partial)
-		return err
-	}
-
-	if err := os.Rename(partial, destination); err != nil {
-		_ = os.Remove(partial)
-		return err
-	}
-
-	return os.Chmod(destination, 0o600)
 }
 
 func (c *BookCache) removeStaleVersions(book Book) error {

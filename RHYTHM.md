@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- Book cache downloads now rely on `Client.DownloadFile` for atomic temp-file handling instead of adding a second `.partial` rename layer on top of the client's `.part` file.
 - `DefaultLogPath` now lives in `internal/config`, so config loading no longer imports the logging package.
 - PocketBook discovery commands now report `POCKETBOOK_SYNC_ENABLED is false` and both `pocketbook-dump-note` and `pocketbook-list-books` honor the same source switch.
 - Mongo PocketBook session persistence now depends on `internal/source/session` instead of `internal/source/pocketbook`, keeping storage adapters free of concrete source-package imports.
