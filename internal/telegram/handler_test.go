@@ -424,6 +424,12 @@ type fakeNotifier struct {
 	messages          []fakeMessage
 	documents         []fakeDocument
 	callbackResponses []fakeCallbackResponse
+	chatActions       []fakeChatAction
+}
+
+type fakeChatAction struct {
+	chatID int64
+	action string
 }
 
 type fakeMessage struct {
@@ -474,6 +480,15 @@ func (n *fakeNotifier) recordMessage(ctx context.Context, chatID int64, text str
 	}
 
 	n.messages = append(n.messages, fakeMessage{chatID: chatID, text: text, keyboard: keyboard})
+	return nil
+}
+
+func (n *fakeNotifier) SendChatAction(ctx context.Context, chatID int64, action string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	n.chatActions = append(n.chatActions, fakeChatAction{chatID: chatID, action: action})
 	return nil
 }
 

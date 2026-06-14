@@ -18,6 +18,7 @@ type Notifier interface {
 	SendMessage(ctx context.Context, chatID int64, text string) error
 	SendHTMLMessage(ctx context.Context, chatID int64, text string) error
 	SendHTMLMessageWithKeyboard(ctx context.Context, chatID int64, text string, keyboard InlineKeyboardMarkup) error
+	SendChatAction(ctx context.Context, chatID int64, action string) error
 	AnswerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error
 	SendDocument(ctx context.Context, chatID int64, path string, caption string) error
 }

@@ -145,6 +145,28 @@ func (c *Client) AnswerCallbackQuery(ctx context.Context, callbackQueryID string
 	return nil
 }
 
+func (c *Client) SendChatAction(ctx context.Context, chatID int64, action string) error {
+	values := url.Values{}
+	values.Set("chat_id", strconv.FormatInt(chatID, 10))
+	values.Set("action", strings.TrimSpace(action))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("sendChatAction"), strings.NewReader(values.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	var response apiResponse[bool]
+	if err := c.doJSON(req, &response); err != nil {
+		return err
+	}
+	if !response.OK {
+		return fmt.Errorf("telegram sendChatAction failed: %s", response.Description)
+	}
+
+	return nil
+}
+
 func (c *Client) SendDocument(ctx context.Context, chatID int64, path string, caption string) error {
 	file, err := os.Open(path)
 	if err != nil {

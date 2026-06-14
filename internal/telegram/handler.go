@@ -86,6 +86,21 @@ func (h *CommandHandler) HandleMessage(ctx context.Context, message Message) err
 	}
 
 	chatID := message.Chat.ID
+	return runWithChatAction(ctx, h.notifier, chatID, commandChatAction(command), func(ctx context.Context) error {
+		return h.dispatchCommand(ctx, chatID, command)
+	})
+}
+
+func commandChatAction(command string) string {
+	switch command {
+	case CommandListWords, CommandLogs:
+		return chatActionUploadDocument
+	default:
+		return chatActionTyping
+	}
+}
+
+func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID int64, command string) error {
 	switch command {
 	case CommandStart:
 		return h.sendHTMLMessage(ctx, chatID, formatStartMessage())

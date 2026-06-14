@@ -8,6 +8,38 @@ import (
 	"testing"
 )
 
+func TestClientSendChatAction(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/botfake-token/sendChatAction" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.Form.Get("chat_id") != "42" {
+			t.Fatalf("chat_id = %q, want 42", r.Form.Get("chat_id"))
+		}
+		if r.Form.Get("action") != chatActionTyping {
+			t.Fatalf("action = %q, want %q", r.Form.Get("action"), chatActionTyping)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"result":true}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	if err := client.SendChatAction(context.Background(), 42, chatActionTyping); err != nil {
+		t.Fatalf("SendChatAction() error = %v", err)
+	}
+}
+
 func TestClientSendHTMLMessageSetsParseMode(t *testing.T) {
 	t.Parallel()
 
