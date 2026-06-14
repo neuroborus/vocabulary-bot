@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- Deploy now defaults to `~/vocabulary-bot` when `DEPLOY_PATH` is unset and falls back to `sudo mkdir/chown` for fixed paths such as `/opt/vocabulary-bot`.
 - Sheet row reassignment onto an existing vocabulary item now deletes the emptied source item, returns the updated target in merge outcomes, and has a regression test for `carve -> gauge` when `gauge` already exists.
 - Telegram HTTP failures now decode the Bot API `description` field when present and include the sanitized text in returned errors.
 - `normalizeBookText` now tracks newline state in O(1) instead of calling `builder.String()` inside the rune loop when flattening large EPUBs.

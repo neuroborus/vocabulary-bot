@@ -2,7 +2,7 @@
 
 Lightweight deployment: a static Go binary in a small Alpine image (~43 MB), `192m` memory limit in Compose.
 
-Runtime config is rendered from GitHub **secrets** and **variables** on each deploy and written to `/opt/vocabulary-bot/.env` on the server. You do not need to maintain `.env` on the host manually after the first deploy.
+Runtime config is rendered from GitHub **secrets** and **variables** on each deploy and written to the deploy directory on the server (default: `~/vocabulary-bot`). You do not need to maintain `.env` on the host manually after the first deploy.
 
 ## One-time server setup
 
@@ -14,12 +14,14 @@ sudo usermod -aG docker "$USER"
 
 Log out and back in so the `docker` group applies.
 
-Create the app directory:
+Create the app directory when using `/opt`:
 
 ```bash
 sudo mkdir -p /opt/vocabulary-bot
 sudo chown "$USER:$USER" /opt/vocabulary-bot
 ```
+
+If `DEPLOY_PATH` is unset, deploy uses `~/vocabulary-bot` and creates it over SSH without sudo.
 
 Add the deploy public key to `~/.ssh/authorized_keys` for the deploy user.
 
@@ -40,7 +42,7 @@ Add the deploy public key to `~/.ssh/authorized_keys` for the deploy user.
 | Variable | Example | Purpose |
 |----------|---------|---------|
 | `DEPLOY_HOST` | `ubuntu@150.230.145.55` | SSH target user and host |
-| `DEPLOY_PATH` | `/opt/vocabulary-bot` | Remote install directory (optional) |
+| `DEPLOY_PATH` | empty | Remote install directory; default is `~/vocabulary-bot` |
 | `APP_ENV` | `beta` | Runtime environment label |
 | `LOG_PATH` | empty | Override log file path (optional) |
 | `SYNC_ENABLED` | `true` | Master sync switch |
@@ -87,7 +89,7 @@ Recommended: create a GitHub `production` environment for the deploy job so depl
 ## Manual operations on the server
 
 ```bash
-cd /opt/vocabulary-bot
+cd ~/vocabulary-bot   # or /opt/vocabulary-bot when DEPLOY_PATH is set
 docker compose logs -f
 docker compose restart
 docker compose down

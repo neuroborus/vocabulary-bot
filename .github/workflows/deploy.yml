@@ -98,14 +98,39 @@ jobs:
           host="${DEPLOY_HOST#*@}"
           ssh-keyscan -H "${host}" >> ~/.ssh/known_hosts
 
-      - name: Upload compose file and env
+      - name: Resolve deploy directory
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         run: |
           set -euo pipefail
-          target_dir="${DEPLOY_PATH:-/opt/vocabulary-bot}"
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${DEPLOY_HOST}" "mkdir -p '${target_dir}'"
+          if [ -n "${DEPLOY_PATH:-}" ]; then
+            target_dir="${DEPLOY_PATH}"
+          else
+            target_dir="$(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${DEPLOY_HOST}" 'printf "%s/vocabulary-bot" "${HOME}"')"
+          fi
+          echo "DEPLOY_TARGET_DIR=${target_dir}" >> "${GITHUB_ENV}"
+          echo "Deploy directory: ${target_dir}"
+
+      - name: Upload compose file and env
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          target_dir="${DEPLOY_TARGET_DIR}"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${DEPLOY_HOST}" bash -s <<EOF
+          set -euo pipefail
+          target_dir='${target_dir}'
+          if ! mkdir -p "\${target_dir}" 2>/dev/null; then
+            if command -v sudo >/dev/null 2>&1; then
+              sudo mkdir -p "\${target_dir}"
+              sudo chown "\$(id -un):\$(id -gn)" "\${target_dir}"
+            else
+              echo "mkdir failed for \${target_dir}; create it on the server or set DEPLOY_PATH to a writable directory" >&2
+              exit 1
+            fi
+          fi
+          EOF
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes docker-compose.yml "${DEPLOY_HOST}:${target_dir}/docker-compose.yml"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes .env.deploy "${DEPLOY_HOST}:${target_dir}/.env"
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${DEPLOY_HOST}" "chmod 600 '${target_dir}/.env'"
@@ -113,10 +138,9 @@ jobs:
       - name: Deploy image and restart service
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         run: |
           set -euo pipefail
-          target_dir="${DEPLOY_PATH:-/opt/vocabulary-bot}"
+          target_dir="${DEPLOY_TARGET_DIR}"
 
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes vocabulary-bot-image.tar.gz "${DEPLOY_HOST}:/tmp/vocabulary-bot-image.tar.gz"
 
