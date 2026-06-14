@@ -613,7 +613,7 @@ PocketBook: 12 notes processed, 3 new words.
 Google Sheet: 18 rows processed, 5 new words, 7 updated words.
 ```
 
-### `/list-words`
+### `/list_words`
 
 Sends a JSON file with all words from MongoDB.
 
@@ -635,7 +635,7 @@ Should include spreadsheet adapter status:
 }
 ```
 
-### `/turn-off`
+### `/turn_off`
 
 Turns off both:
 
@@ -644,7 +644,7 @@ word notifications
 source synchronization
 ```
 
-### `/turn-on`
+### `/turn_on`
 
 Turns both back on.
 
@@ -782,7 +782,7 @@ The actual merge into MongoDB should happen in the common vocabulary service, no
 7. Leading and trailing extra tokens are handled through structural lookup candidates.
 8. Original forms are preserved in `forms[]`.
 9. `/sync` runs spreadsheet synchronization manually.
-10. `/list-words` exports all stored words as JSON.
+10. `/list_words` exports all stored words as JSON.
 11. `/health` reports spreadsheet adapter status.
 12. Spreadsheet sync logs are written to file.
 13. `/logs` sends the current log file to Telegram.

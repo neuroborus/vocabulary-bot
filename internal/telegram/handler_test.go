@@ -2,6 +2,9 @@ package telegram
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -77,6 +80,44 @@ func TestCommandHandlerHealthReportsWordCount(t *testing.T) {
 	}
 }
 
+func TestCommandHandlerStartAndInfoUseCommandDescriptions(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:      notifier,
+		AllowedUserID: 42,
+		SyncEnabled:   true,
+	})
+
+	if err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: CommandStart,
+	}); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: CommandInfo,
+	}); err != nil {
+		t.Fatalf("info: %v", err)
+	}
+
+	if len(notifier.messages) != 2 {
+		t.Fatalf("messages = %d, want 2", len(notifier.messages))
+	}
+	for _, message := range notifier.messages {
+		if !strings.Contains(message.text, CommandInfo+" - ") {
+			t.Fatalf("message does not include info description: %q", message.text)
+		}
+		if !strings.Contains(message.text, CommandListWords+" - ") {
+			t.Fatalf("message does not include list_words description: %q", message.text)
+		}
+	}
+}
+
 func TestCommandHandlerSyncUsesRunner(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +159,65 @@ func TestCommandHandlerSyncUsesRunner(t *testing.T) {
 	}
 	if !strings.Contains(notifier.messages[0].text, "Drafts processed: 3") {
 		t.Fatalf("sync text = %q", notifier.messages[0].text)
+	}
+}
+
+func TestBotCommandsAreTelegramMenuCompatible(t *testing.T) {
+	t.Parallel()
+
+	commands := BotCommands()
+	if len(commands) != len(KnownCommands()) {
+		t.Fatalf("BotCommands length = %d, want %d", len(commands), len(KnownCommands()))
+	}
+
+	for _, command := range commands {
+		if strings.HasPrefix(command.Command, "/") {
+			t.Fatalf("bot command %q must not include slash", command.Command)
+		}
+		if strings.Contains(command.Command, "-") {
+			t.Fatalf("bot command %q must use snake_case, not kebab-case", command.Command)
+		}
+		if command.Description == "" {
+			t.Fatalf("bot command %q has empty description", command.Command)
+		}
+	}
+}
+
+func TestClientSetMyCommands(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/botfake-token/setMyCommands" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+
+		var payload struct {
+			Commands []BotCommand `json:"commands"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if len(payload.Commands) == 0 {
+			t.Fatalf("commands payload is empty")
+		}
+		if payload.Commands[0].Command != "start" {
+			t.Fatalf("first command = %q, want start", payload.Commands[0].Command)
+		}
+		if payload.Commands[0].Description == "" {
+			t.Fatalf("first command description is empty")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"result":true}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	if err := client.SetMyCommands(context.Background(), BotCommands()); err != nil {
+		t.Fatalf("SetMyCommands() error = %v", err)
 	}
 }
 

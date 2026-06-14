@@ -449,16 +449,22 @@ The log file must not contain secrets, refresh tokens, passwords, cookies, or fu
 The bot must support these commands:
 
 ```text
+/start
+  Show bot help and available commands.
+
+/info
+  Show service info and available commands.
+
 /health
   Check bot health, database connection, scheduler state, and last PocketBook sync status.
 
-/list-words
+/list_words
   Send a JSON file with all vocabulary items currently stored in the database.
 
-/turn-off
+/turn_off
   Disable word notifications and source synchronization.
 
-/turn-on
+/turn_on
   Enable word notifications and source synchronization.
 
 /sync
@@ -562,10 +568,12 @@ review push after successful merge
 Add Telegram commands:
 
 ```text
+/start
+/info
 /health
-/list-words
-/turn-off
-/turn-on
+/list_words
+/turn_off
+/turn_on
 /sync
 /push
 /logs

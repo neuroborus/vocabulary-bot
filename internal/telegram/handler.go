@@ -79,6 +79,10 @@ func (h *CommandHandler) HandleMessage(ctx context.Context, message Message) err
 
 	chatID := h.replyChatID(message)
 	switch command {
+	case CommandStart:
+		return h.sendMessage(ctx, chatID, h.startText())
+	case CommandInfo:
+		return h.sendMessage(ctx, chatID, h.infoText(ctx))
 	case CommandHealth:
 		return h.sendMessage(ctx, chatID, h.healthText(ctx))
 	case CommandSync:
@@ -125,9 +129,17 @@ func (h *CommandHandler) healthText(ctx context.Context) string {
 	)
 }
 
+func (h *CommandHandler) startText() string {
+	return "Vocabulary Bot\n\n" + knownCommandsText()
+}
+
+func (h *CommandHandler) infoText(ctx context.Context) string {
+	return h.healthText(ctx) + "\n\n" + knownCommandsText()
+}
+
 func (h *CommandHandler) handleSync(ctx context.Context, chatID int64) error {
 	if !h.syncEnabled {
-		return h.sendMessage(ctx, chatID, "Sync is disabled. Use /turn-on first.")
+		return h.sendMessage(ctx, chatID, "Sync is disabled. Use /turn_on first.")
 	}
 	if h.syncRunner == nil {
 		return h.sendMessage(ctx, chatID, "Sync service is not configured.")
@@ -237,5 +249,15 @@ func formatSyncSummary(summary syncer.Summary) string {
 }
 
 func knownCommandsText() string {
-	return "Known commands:\n" + strings.Join(KnownCommands(), "\n")
+	var builder strings.Builder
+	builder.WriteString("Known commands:")
+
+	for _, command := range KnownCommands() {
+		builder.WriteString("\n")
+		builder.WriteString(command.Command)
+		builder.WriteString(" - ")
+		builder.WriteString(command.Description)
+	}
+
+	return builder.String()
 }

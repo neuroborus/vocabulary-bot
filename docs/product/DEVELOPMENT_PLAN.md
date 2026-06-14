@@ -598,7 +598,19 @@ ambiguous merge count, if any
 
 ---
 
-### `/list-words`
+### `/start`
+
+Shows bot help and available commands.
+
+---
+
+### `/info`
+
+Shows service info and available commands.
+
+---
+
+### `/list_words`
 
 Exports all words from MongoDB as a JSON file and sends it to the user in Telegram.
 
@@ -619,7 +631,7 @@ createdAt / updatedAt
 
 ---
 
-### `/turn-off`
+### `/turn_off`
 
 Disables both:
 
@@ -632,7 +644,7 @@ Manual commands should still work unless explicitly blocked.
 
 ---
 
-### `/turn-on`
+### `/turn_on`
 
 Enables:
 
@@ -774,7 +786,7 @@ type AppSettings = {
 };
 ```
 
-`/turn-off` updates:
+`/turn_off` updates:
 
 ```json
 {
@@ -783,7 +795,7 @@ type AppSettings = {
 }
 ```
 
-`/turn-on` updates:
+`/turn_on` updates:
 
 ```json
 {
@@ -843,9 +855,9 @@ src/
     telegram-bot.ts
     commands/
       health.command.ts
-      list-words.command.ts
-      turn-off.command.ts
-      turn-on.command.ts
+      list_words.command.ts
+      turn_off.command.ts
+      turn_on.command.ts
       sync.command.ts
       push.command.ts
       logs.command.ts
@@ -908,10 +920,12 @@ MVP should include:
 7. Merge pipeline.
 8. Telegram reminders with Easy / Hard / Delete buttons.
 9. Commands:
+   - /start
+   - /info
    - /health
-   - /list-words
-   - /turn-off
-   - /turn-on
+   - /list_words
+   - /turn_off
+   - /turn_on
    - /sync
    - /push
    - /logs

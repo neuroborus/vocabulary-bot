@@ -77,12 +77,14 @@ When `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_ID`, and `TELEGRAM_POLLING_ENA
 Minimal commands:
 
 ```text
+/start
+/info
 /health
 /sync
-/list-words
+/list_words
 /logs
-/turn-off
-/turn-on
+/turn_off
+/turn_on
 /push
 ```
 

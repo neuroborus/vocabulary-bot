@@ -145,6 +145,36 @@ func (c *Client) SendDocument(ctx context.Context, chatID int64, path string, ca
 	return nil
 }
 
+func (c *Client) SetMyCommands(ctx context.Context, commands []BotCommand) error {
+	body, err := json.Marshal(struct {
+		Commands []BotCommand `json:"commands"`
+	}{
+		Commands: commands,
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("setMyCommands"), bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	var response apiResponse[bool]
+	if err := c.doJSON(req, &response); err != nil {
+		return err
+	}
+	if !response.OK {
+		return fmt.Errorf("telegram setMyCommands failed: %s", response.Description)
+	}
+	if !response.Result {
+		return fmt.Errorf("telegram setMyCommands failed")
+	}
+
+	return nil
+}
+
 func (c *Client) methodURL(method string) string {
 	return c.baseURL + "/bot" + c.botToken + "/" + method
 }

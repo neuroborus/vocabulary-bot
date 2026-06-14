@@ -168,6 +168,22 @@ func runTelegram(
 	})
 	bot := telegram.NewBot(client, handler, logger)
 
+	if err := client.SetMyCommands(ctx, telegram.BotCommands()); err != nil {
+		logger.Error("telegram command menu setup failed", slog.String("error", logging.SanitizeError(err)))
+	}
+
+	notifyChatID := cfg.Telegram.AllowedUserID
+	if cfg.Telegram.TargetChatID != 0 {
+		notifyChatID = cfg.Telegram.TargetChatID
+	}
+	if err := client.SendMessage(ctx, notifyChatID, "Started!"); err != nil {
+		logger.Error(
+			"telegram startup notification failed",
+			slog.Int64("chat_id", notifyChatID),
+			slog.String("error", logging.SanitizeError(err)),
+		)
+	}
+
 	logger.Info("telegram polling started")
 	return bot.Poll(ctx)
 }
