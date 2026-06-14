@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-14
 
+- CI now runs only on pull requests targeting `main`, not on every push to `dev` or `main`.
 - Deploy remote steps now fall back to `sudo docker` when the SSH user cannot access `/var/run/docker.sock` directly.
 - Deploy now defaults to `~/vocabulary-bot` when `DEPLOY_PATH` is unset and falls back to `sudo mkdir/chown` for fixed paths such as `/opt/vocabulary-bot`.
 - Sheet row reassignment onto an existing vocabulary item now deletes the emptied source item, returns the updated target in merge outcomes, and has a regression test for `carve -> gauge` when `gauge` already exists.

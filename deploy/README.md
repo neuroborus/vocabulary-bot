@@ -79,7 +79,7 @@ Recommended: create a GitHub `production` environment for the deploy job so depl
 
 ## CI/CD
 
-- `CI` — runs on pull requests and pushes to `main` / `dev`: `gofmt` check, `go test`, `go vet`, build.
+- `CI` — runs on pull requests into `main`: `gofmt` check, `go test`, `go vet`, build.
 - `Deploy` — runs after tests on push to `main` and on manual **Run workflow**:
   1. build Docker image in GitHub Actions;
   2. render `.env` from GitHub secrets/variables;
