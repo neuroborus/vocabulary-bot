@@ -1,0 +1,4 @@
+interface:
+  display_name: "Finalization"
+  short_description: "Post-change checklist for this Go project"
+  default_prompt: "Use $finalization to finish and verify the current change set."
