@@ -35,42 +35,7 @@ description: Post-change finalization checklist for the Vocabulary Bot Go projec
 
 ---
 
-## 2. Full check run
-
-- [ ] Format touched Go files:
-
-```bash
-gofmt -w cmd internal
-```
-
-- [ ] Run the whole module:
-
-```bash
-go test ./...
-go vet ./...
-go run ./cmd/vocabulary-bot
-```
-
-- [ ] If the default Go build cache is not writable in the current sandbox, rerun with a temp cache:
-
-```bash
-GOCACHE=/tmp/vocabulary-bot-go-cache go test ./...
-GOCACHE=/tmp/vocabulary-bot-go-cache go vet ./...
-GOCACHE=/tmp/vocabulary-bot-go-cache go run ./cmd/vocabulary-bot
-```
-
-- [ ] For risky domain changes, also run coverage:
-
-```bash
-GOCACHE=/tmp/vocabulary-bot-go-cache go test -coverprofile=coverage.out ./...
-go tool cover -func=coverage.out
-```
-
-- [ ] Fix failures before considering the change set done.
-
----
-
-## 3. Project boundary review
+## 2. Project boundary review
 
 - [ ] `cmd/vocabulary-bot` stays a thin executable entrypoint: context setup, `app.Run`, final error handling.
 - [ ] `internal/app` remains the composition root: load config, create logger, wire storage, sources, vocabulary service, sync service, Telegram/review later.
@@ -84,7 +49,7 @@ go tool cover -func=coverage.out
 
 ---
 
-## 4. Vocabulary domain review
+## 3. Vocabulary domain review
 
 - [ ] PocketBook and Google Sheets still write into one common `VocabularyItem` model through `vocabulary.Draft`.
 - [ ] Raw visible forms are always preserved in `forms`.
@@ -107,7 +72,7 @@ go tool cover -func=coverage.out
 
 ---
 
-## 5. Source adapter review
+## 4. Source adapter review
 
 - [ ] PocketBook stays an unofficial adapter with defensive parsing and fixture-driven behavior.
 - [ ] PocketBook errors should not prevent Google Sheets sync when the remaining source can still run.
@@ -117,7 +82,7 @@ go tool cover -func=coverage.out
 
 ---
 
-## 6. Config and secrets review
+## 5. Config and secrets review
 
 - [ ] New runtime config is loaded through `internal/config`.
 - [ ] `.env.example` is updated when env vars change.
@@ -127,7 +92,7 @@ go tool cover -func=coverage.out
 
 ---
 
-## 7. Logging and operations review
+## 6. Logging and operations review
 
 - [ ] Logs are written in English.
 - [ ] File logging still defaults to `logs/app.log`.
@@ -137,7 +102,7 @@ go tool cover -func=coverage.out
 
 ---
 
-## 8. Docs and agents alignment
+## 7. Docs and agents alignment
 
 - [ ] Update `README.md` when commands, structure, setup, or runtime behavior changes.
 - [ ] Update `AGENTS.md` when package boundaries, Go conventions, validation commands, or agent gates change.
@@ -150,13 +115,66 @@ go tool cover -func=coverage.out
 
 ---
 
-## 9. Idiomaticity pass
+## 8. Idiomaticity pass
 
 - [ ] Touched code is conventional Go: small packages, clear exported names, minimal interfaces at consumer boundaries, explicit errors, no needless abstractions.
 - [ ] Comments are concise and explain non-obvious intent, trade-offs, or constraints only.
 - [ ] Avoid catch-all `utils`/`helpers` packages; place pure functions next to their domain.
 - [ ] Keep dependencies minimal; prefer the standard library until an external package has a clear payoff.
 - [ ] Avoid unrelated refactors and generated churn in the same change set.
+
+---
+
+## 9. Full check run
+
+- [ ] Run the whole module:
+
+```bash
+go test ./...
+go vet ./...
+go run ./cmd/vocabulary-bot
+```
+
+- [ ] Or use the Makefile wrappers:
+
+```bash
+make test
+make vet
+make run
+```
+
+- [ ] If the default Go build cache is not writable in the current sandbox, rerun with a temp cache:
+
+```bash
+GOCACHE=/tmp/vocabulary-bot-go-cache go test ./...
+GOCACHE=/tmp/vocabulary-bot-go-cache go vet ./...
+GOCACHE=/tmp/vocabulary-bot-go-cache go run ./cmd/vocabulary-bot
+```
+
+- [ ] For risky domain changes, also run coverage:
+
+```bash
+GOCACHE=/tmp/vocabulary-bot-go-cache go test -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+```
+
+- [ ] Fix failures before considering the change set done.
+
+### Final formatting
+
+- [ ] Format Go code after all intended edits, review changes, and checks are complete:
+
+```bash
+make fmt
+```
+
+- [ ] If `make` is unavailable, run the underlying formatter directly:
+
+```bash
+gofmt -w cmd internal
+```
+
+- [ ] If formatting changed files, rerun the relevant checks.
 
 ---
 
