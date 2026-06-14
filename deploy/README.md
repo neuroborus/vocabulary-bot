@@ -42,16 +42,28 @@ Add the deploy public key to `~/.ssh/authorized_keys` for the deploy user.
 | `DEPLOY_HOST` | `ubuntu@150.230.145.55` | SSH target user and host |
 | `DEPLOY_PATH` | `/opt/vocabulary-bot` | Remote install directory (optional) |
 | `APP_ENV` | `beta` | Runtime environment label |
+| `LOG_PATH` | empty | Override log file path (optional) |
 | `SYNC_ENABLED` | `true` | Master sync switch |
 | `NOTIFICATIONS_ENABLED` | `true` | Telegram notifications |
 | `MONGODB_DB_NAME` | `vocabulary_bot` | MongoDB database name |
 | `TELEGRAM_ALLOWED_USER_ID` | `490734700` | Allowed command user |
 | `TELEGRAM_TARGET_CHAT_ID` | `-1004299028040` | Review push target chat |
+| `TELEGRAM_POLLING_ENABLED` | `true` | Start Telegram long polling |
+| `TELEGRAM_API_BASE_URL` | empty | Optional Bot API override |
+| `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS` | `true` | Hide translations behind spoiler |
+| `SCHEDULE_TIMEZONE` | `Europe/Berlin` | Cron timezone (optional) |
 | `AUTO_SYNC_CRON` | `0 9 * * *` | Daily sync schedule |
 | `AUTO_PUSH_CRON` | `0 12-21/2 * * *` | Review push schedule |
 | `AUTO_LOGS_CRON` | `0 21 * * 5` | Weekly log delivery |
 | `POCKETBOOK_SYNC_ENABLED` | `true` | PocketBook source switch |
 | `POCKETBOOK_EMAIL` | `reader@example.test` | PocketBook login |
+| `POCKETBOOK_REFRESH_TOKEN` | empty | Optional refresh-token override |
+| `POCKETBOOK_SHOP_NAME` | empty | Optional shop name |
+| `POCKETBOOK_API_BASE_URL` | empty | Optional API override for tests |
+| `POCKETBOOK_TOKEN_PATH` | empty | File session store path when MongoDB is off |
+| `POCKETBOOK_BOOK_CONTEXT_ENABLED` | `true` | Download books for sentence context |
+| `POCKETBOOK_BOOK_CACHE_DIR` | empty | Book cache directory override |
+| `POCKETBOOK_BOOK_CACHE_MAX` | `2` | Cached books kept by LRU |
 | `GOOGLE_SHEET_SYNC_ENABLED` | `true` | Google Sheets source switch |
 | `GOOGLE_SPREADSHEET_ID` | spreadsheet id from URL | Sheet document id |
 | `GOOGLE_SHEET_NAME` | `Vocabulary` | Sheet tab name |

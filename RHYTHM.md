@@ -5,6 +5,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 ## 2026-06-14
 
 - Google Sheets row edits now replace the prior row contribution instead of append-only merge: sheet anchors store a `rowSnapshot`, changed rows subtract the old snapshot, apply the new draft, rebuild lookup keys, and move the row anchor when the edited word matches another item.
+- Deploy workflow now passes every variable supported by `deploy/render-env.sh`, so optional production settings such as `TELEGRAM_POLLING_ENABLED`, `SCHEDULE_TIMEZONE`, and PocketBook cache overrides take effect on deploy.
 - `config.Load` now returns an error for invalid boolean, integer, and positive-float env values instead of silently falling back to defaults.
 - Source sync summaries now surface partial adapter failures in `/sync`: PocketBook books skipped/failed and note fetch failures, plus spreadsheet row parse errors, through extended `source.Details`.
 - Command handler runtime flags and sync execution are now mutex-protected so Telegram polling and the scheduler do not race on `/turn_off`, `/turn_on`, and overlapping manual/scheduled sync runs.
