@@ -2,10 +2,17 @@ package review
 
 import (
 	"math"
-	"sort"
+	"math/rand"
 	"time"
 
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
+)
+
+const (
+	pushPriorityBaseline   = 1.0
+	notDueWeightMultiplier = 0.12
+	recentPushHourPenalty  = 0.08
+	recentPushDayPenalty   = 0.35
 )
 
 func IsEligible(item vocabulary.Item) bool {
@@ -23,13 +30,15 @@ func IsDue(item vocabulary.Item, now time.Time) bool {
 	return !item.Review.DueAt.After(now.UTC())
 }
 
-// SelectionOptions tunes review word priority.
+// SelectionOptions tunes weighted random review selection.
 type SelectionOptions struct {
-	// DocumentPushFactor scales difficulty for spreadsheet-only words and PocketBook
-	// PDF notes labeled Document. 0.7 means 30% lower push priority.
+	// DocumentPushFactor scales selection weight for spreadsheet-only words and
+	// PocketBook PDF notes labeled Document. 0.7 means 30% lower weight.
 	DocumentPushFactor float64
-	// BookPushFactor scales difficulty for PocketBook book anchors.
+	// BookPushFactor scales selection weight for PocketBook book anchors.
 	BookPushFactor float64
+	// Rand provides randomness for SelectNext. When nil, a time-seeded source is used.
+	Rand *rand.Rand
 }
 
 func (o SelectionOptions) effectiveDocumentPushFactor() float64 {
@@ -48,7 +57,13 @@ func (o SelectionOptions) effectiveBookPushFactor() float64 {
 	return o.BookPushFactor
 }
 
-const pushPriorityBaseline = 1.0
+func (o SelectionOptions) rng() *rand.Rand {
+	if o.Rand != nil {
+		return o.Rand
+	}
+
+	return rand.New(rand.NewSource(time.Now().UnixNano()))
+}
 
 // DifficultyScore estimates how hard a word is for the user.
 // Higher values mean the word was marked Hard more often than Easy.
@@ -71,13 +86,59 @@ func PushPriorityScore(item vocabulary.Item, opts SelectionOptions) float64 {
 	}
 }
 
-// SelectNext picks the next review word.
-// Priority:
-// 1. Higher push priority score: (difficulty + 1) scaled by source factor
-// 2. Due words over not-yet-due words
-// 3. Earlier dueAt
-// 4. Older last push / never pushed
-// 5. Older createdAt
+// SelectWeight estimates how likely a word is to be picked for /push.
+// Higher difficulty and source factors increase weight; due words are favored;
+// not-yet-due and very recently pushed words are down-weighted but not excluded.
+func SelectWeight(item vocabulary.Item, now time.Time, opts SelectionOptions) float64 {
+	weight := PushPriorityScore(item, opts)
+	if weight <= 0 {
+		weight = pushPriorityBaseline
+	}
+
+	weight *= scheduleWeightMultiplier(item, now)
+	weight *= recencyWeightMultiplier(item, now)
+
+	if weight < 0 {
+		return 0
+	}
+
+	return weight
+}
+
+func scheduleWeightMultiplier(item vocabulary.Item, now time.Time) float64 {
+	if !IsDue(item, now) {
+		return notDueWeightMultiplier
+	}
+	if item.Review.DueAt == nil {
+		return 1
+	}
+
+	overdue := now.UTC().Sub(item.Review.DueAt.UTC())
+	if overdue <= 0 {
+		return 1
+	}
+
+	days := overdue.Hours() / 24
+	return 1 + math.Min(days*0.5, 2)
+}
+
+func recencyWeightMultiplier(item vocabulary.Item, now time.Time) float64 {
+	if item.Review.LastPushedAt == nil {
+		return 1
+	}
+
+	since := now.UTC().Sub(item.Review.LastPushedAt.UTC())
+	switch {
+	case since < time.Hour:
+		return recentPushHourPenalty
+	case since < 24*time.Hour:
+		return recentPushDayPenalty
+	default:
+		return 1
+	}
+}
+
+// SelectNext picks a review word at random with probability proportional to SelectWeight.
 func SelectNext(items []vocabulary.Item, now time.Time, opts ...SelectionOptions) (vocabulary.Item, bool) {
 	options := SelectionOptions{DocumentPushFactor: 1, BookPushFactor: 1}
 	if len(opts) > 0 {
@@ -86,86 +147,47 @@ func SelectNext(items []vocabulary.Item, now time.Time, opts ...SelectionOptions
 
 	now = now.UTC()
 	eligible := make([]vocabulary.Item, 0, len(items))
+	weights := make([]float64, 0, len(items))
 	for _, item := range items {
-		if IsEligible(item) {
-			eligible = append(eligible, item)
+		if !IsEligible(item) {
+			continue
 		}
+		weight := SelectWeight(item, now, options)
+		if weight <= 0 {
+			continue
+		}
+		eligible = append(eligible, item)
+		weights = append(weights, weight)
 	}
 	if len(eligible) == 0 {
 		return vocabulary.Item{}, false
 	}
 
-	sort.Slice(eligible, func(i, j int) bool {
-		return compareSelectPriority(eligible[i], eligible[j], now, options)
-	})
-
-	return eligible[0], true
+	index := weightedPick(weights, options.rng())
+	return eligible[index], true
 }
 
-func compareSelectPriority(left, right vocabulary.Item, now time.Time, opts SelectionOptions) bool {
-	leftScore := PushPriorityScore(left, opts)
-	rightScore := PushPriorityScore(right, opts)
-	if !scoresEqual(leftScore, rightScore) {
-		return leftScore > rightScore
+func weightedPick(weights []float64, rng *rand.Rand) int {
+	if len(weights) == 1 {
+		return 0
 	}
 
-	leftDue := IsDue(left, now)
-	rightDue := IsDue(right, now)
-	if leftDue != rightDue {
-		return leftDue
+	var total float64
+	for _, weight := range weights {
+		total += weight
+	}
+	if total <= 0 {
+		return rng.Intn(len(weights))
 	}
 
-	leftDueNil := left.Review.DueAt == nil
-	rightDueNil := right.Review.DueAt == nil
-	if leftDueNil != rightDueNil {
-		return leftDueNil
-	}
-	if !leftDueNil && left.Review.DueAt.Before(*right.Review.DueAt) {
-		return true
-	}
-	if !leftDueNil && right.Review.DueAt.Before(*left.Review.DueAt) {
-		return false
-	}
-
-	if lastPushedEqual(left, right) {
-		if left.CreatedAt.Equal(right.CreatedAt) {
-			return left.NormalizedKey < right.NormalizedKey
+	threshold := rng.Float64() * total
+	var running float64
+	for index, weight := range weights {
+		running += weight
+		if threshold < running {
+			return index
 		}
-		return left.CreatedAt.Before(right.CreatedAt)
-	}
-	if compareLastPushed(left, right) {
-		return true
 	}
 
-	return false
-}
-
-func scoresEqual(left, right float64) bool {
-	return math.Abs(left-right) < 1e-9
-}
-
-func lastPushedEqual(left, right vocabulary.Item) bool {
-	leftNil := left.Review.LastPushedAt == nil
-	rightNil := right.Review.LastPushedAt == nil
-	if leftNil || rightNil {
-		return leftNil && rightNil
-	}
-
-	return left.Review.LastPushedAt.Equal(*right.Review.LastPushedAt)
-}
-
-func compareLastPushed(left, right vocabulary.Item) bool {
-	leftNil := left.Review.LastPushedAt == nil
-	rightNil := right.Review.LastPushedAt == nil
-	if leftNil != rightNil {
-		return leftNil
-	}
-	if leftNil {
-		return false
-	}
-	if left.Review.LastPushedAt.Equal(*right.Review.LastPushedAt) {
-		return false
-	}
-
-	return left.Review.LastPushedAt.Before(*right.Review.LastPushedAt)
+	return len(weights) - 1
 }
