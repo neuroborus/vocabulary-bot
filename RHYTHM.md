@@ -6,7 +6,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 - `config.Load` now unwraps single and double quotes for all env values, including quoted cron expressions such as `AUTO_SYNC_CRON='0 9 * * *'`.
 - GitHub Actions workflows now use Node.js 24-native action majors (`actions/checkout@v6`, `actions/setup-go@v6`) instead of the temporary `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` opt-in.
-- PocketBook FB2 context enrichment now unwraps `.fb2.zip` downloads, skips `notes`/`comments` bodies, joins hyphenated line breaks, and matches possessive/near-offset word forms when resolving `offs`.
+- PocketBook FB2 context enrichment now unwraps `.fb2.zip` downloads, skips `notes`/`comments` bodies, joins hyphenated line breaks, matches inflected surface forms (`carved`, `gauges`, `Teasely`) when resolving dictionary headwords, and searches within ±512 bytes around `offs` before falling back to the whole book.
 - CI now runs only on pull requests targeting `main`, not on every push to `dev` or `main`.
 - Deploy remote steps now fall back to `sudo docker` when the SSH user cannot access `/var/run/docker.sock` directly.
 - Deploy now defaults to `~/vocabulary-bot` when `DEPLOY_PATH` is unset and falls back to `sudo mkdir/chown` for fixed paths such as `/opt/vocabulary-bot`.

@@ -17,6 +17,8 @@ import (
 var blockBoundaryPattern = regexp.MustCompile(`(?i)</(p|div|li|h[1-6]|blockquote|section|article)>`)
 var hyphenatedLineBreakPattern = regexp.MustCompile(`([[:alpha:]])-\n([[:alpha:]])`)
 
+const wordOffsetSearchWindow = 512
+
 func FlattenEPUB(epubPath string) (string, error) {
 	reader, err := zip.OpenReader(epubPath)
 	if err != nil {
@@ -286,13 +288,18 @@ func TextMatchesWordAtOffset(text string, offset int, word string) bool {
 	}
 
 	candidate := text[offset:]
-	if strings.HasPrefix(candidate, word) {
+	if isDictionaryWordMatch(text, offset, word) {
 		return true
 	}
 
 	// PocketBook offsets may point at whitespace before the selected token.
 	trimmed := strings.TrimLeft(candidate, " \t\n\r")
-	return strings.HasPrefix(trimmed, word)
+	if trimmed == candidate {
+		return false
+	}
+
+	trimOffset := offset + (len(candidate) - len(trimmed))
+	return isDictionaryWordMatch(text, trimOffset, word)
 }
 
 func resolveWordOffset(text, word string, preferredOffset int) (int, bool) {
@@ -300,23 +307,31 @@ func resolveWordOffset(text, word string, preferredOffset int) (int, bool) {
 		return preferredOffset, true
 	}
 
-	positions := findWordPositions(text, word)
-	if len(positions) == 0 {
-		positions = findWordPositionsFlexible(text, word)
+	if offset, ok := findWordNearOffset(text, word, preferredOffset); ok {
+		return offset, true
 	}
+
+	positions := allWordPositions(text, word)
 	if len(positions) == 0 {
-		if offset, ok := findWordNearOffset(text, word, preferredOffset); ok {
-			return offset, true
-		}
 		if sentence, ok := ExtractSentenceAtOffset(text, preferredOffset); ok && sentenceContainsWord(sentence, word) {
 			return preferredOffset, true
 		}
 		return 0, false
 	}
-	if len(positions) == 1 {
-		return positions[0], true
+
+	return nearestWordPosition(preferredOffset, positions), true
+}
+
+func allWordPositions(text, word string) []int {
+	positions := findWordPositions(text, word)
+	if len(positions) > 0 {
+		return positions
 	}
 
+	return findWordPositionsFlexible(text, word)
+}
+
+func nearestWordPosition(preferredOffset int, positions []int) int {
 	best := positions[0]
 	bestDistance := absInt(positions[0] - preferredOffset)
 	for _, position := range positions[1:] {
@@ -327,11 +342,11 @@ func resolveWordOffset(text, word string, preferredOffset int) (int, bool) {
 		}
 	}
 
-	return best, true
+	return best
 }
 
 func countWordOccurrences(text, word string) int {
-	return len(findWordPositions(text, word)) + len(findWordPositionsFlexible(text, word))
+	return len(allWordPositions(text, word))
 }
 
 func sentenceContainsWord(sentence, word string) bool {
@@ -396,38 +411,27 @@ func collapseHyphenation(text string) (string, []int) {
 }
 
 func findWordNearOffset(text, word string, preferredOffset int) (int, bool) {
-	const window = 512
-
-	start := preferredOffset - window
+	start := preferredOffset - wordOffsetSearchWindow
 	if start < 0 {
 		start = 0
 	}
-	end := preferredOffset + window
+	end := preferredOffset + wordOffsetSearchWindow
 	if end > len(text) {
 		end = len(text)
 	}
 
 	segment := text[start:end]
-	positions := findWordPositions(segment, word)
-	if len(positions) == 0 {
-		positions = findWordPositionsFlexible(segment, word)
-	}
+	positions := allWordPositions(segment, word)
 	if len(positions) == 0 {
 		return 0, false
 	}
 
-	best := positions[0]
-	bestDistance := absInt((start + positions[0]) - preferredOffset)
-	for _, position := range positions[1:] {
-		absolute := start + position
-		distance := absInt(absolute - preferredOffset)
-		if distance < bestDistance {
-			best = absolute
-			bestDistance = distance
-		}
+	absolute := make([]int, len(positions))
+	for index, position := range positions {
+		absolute[index] = start + position
 	}
 
-	return best, true
+	return nearestWordPosition(preferredOffset, absolute), true
 }
 
 func findWordPositions(text, word string) []int {
@@ -448,7 +452,7 @@ func findWordPositions(text, word string) []int {
 		}
 
 		absolute := searchFrom + index
-		if isWordBoundaryMatch(text, absolute, len(word)) {
+		if isDictionaryWordMatch(text, absolute, word) {
 			positions = append(positions, absolute)
 		}
 
@@ -468,6 +472,38 @@ func isWordBoundaryMatch(text string, start int, length int) bool {
 		if text[end] != '\'' || !hasPossessiveSuffix(text, start, length) {
 			return false
 		}
+	}
+
+	return true
+}
+
+func isDictionaryWordMatch(text string, start int, word string) bool {
+	word = strings.TrimSpace(word)
+	if word == "" || start < 0 || start >= len(text) {
+		return false
+	}
+
+	candidate := text[start:]
+	if !strings.HasPrefix(strings.ToLower(candidate), strings.ToLower(word)) {
+		return false
+	}
+	if start > 0 && isWordCharacter(text[start-1]) {
+		return false
+	}
+
+	rest := candidate[len(word):]
+	if rest == "" {
+		return true
+	}
+
+	for index := 0; index < len(rest); {
+		r, size := utf8.DecodeRuneInString(rest[index:])
+		if unicode.IsLetter(r) || r == '\'' {
+			index += size
+			continue
+		}
+
+		return true
 	}
 
 	return true

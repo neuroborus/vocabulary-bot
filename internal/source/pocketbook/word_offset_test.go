@@ -1,6 +1,84 @@
 package pocketbook
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestResolveWordOffsetMatchesInflectedForms(t *testing.T) {
+	t.Parallel()
+
+	text := normalizeBookText("He leaned on the carved handle while the gauges flickered.")
+
+	offset, ok := resolveWordOffset(text, "carve", stringsIndex(text, "carved"))
+	if !ok {
+		t.Fatal("resolveWordOffset(carve) = false")
+	}
+	if !strings.HasPrefix(text[offset:], "carved") {
+		t.Fatalf("carve offset = %q", text[offset:offset+10])
+	}
+
+	offset, ok = resolveWordOffset(text, "gauge", stringsIndex(text, "gauges"))
+	if !ok {
+		t.Fatal("resolveWordOffset(gauge) = false")
+	}
+	if !strings.HasPrefix(text[offset:], "gauges") {
+		t.Fatalf("gauge offset = %q", text[offset:offset+10])
+	}
+}
+
+func TestResolveWordOffsetMatchesNameStem(t *testing.T) {
+	t.Parallel()
+
+	text := normalizeBookText(`"Right. Pat Teasely." He held out a small, square hand.`)
+
+	offset, ok := resolveWordOffset(text, "teasel", stringsIndex(text, "Teasely"))
+	if !ok {
+		t.Fatal("resolveWordOffset(teasel) = false")
+	}
+	if !strings.HasPrefix(text[offset:], "Teasely") {
+		t.Fatalf("teasel offset = %q", text[offset:offset+10])
+	}
+}
+
+func TestResolveWordOffsetPrefersWindowBeforeGlobal(t *testing.T) {
+	t.Parallel()
+
+	gap := repeatSpaces(1000)
+	text := "alpha frowning beta." + gap + "gamma frowning delta."
+	first := stringsIndex(text, "frowning")
+	second := stringsIndex(text[first+len("frowning"):], "frowning")
+	if second < 0 {
+		t.Fatal("test text missing second frowning")
+	}
+	second += first + len("frowning")
+	preferred := second - 40
+
+	offset, ok := resolveWordOffset(text, "frowning", preferred)
+	if !ok {
+		t.Fatal("resolveWordOffset() = false")
+	}
+	if offset != second {
+		t.Fatalf("offset = %d, want second frowning at %d", offset, second)
+	}
+}
+
+func TestResolveWordOffsetFallsBackToGlobalNearest(t *testing.T) {
+	t.Parallel()
+
+	gap := repeatSpaces(2000)
+	text := "frowning once." + gap + "frowning twice."
+	first := stringsIndex(text, "frowning")
+	preferred := first + 5
+
+	offset, ok := resolveWordOffset(text, "frowning", preferred)
+	if !ok {
+		t.Fatal("resolveWordOffset() = false")
+	}
+	if offset != first {
+		t.Fatalf("offset = %d, want first frowning at %d", offset, first)
+	}
+}
 
 func TestResolveWordOffsetFallsBackToNearestOccurrence(t *testing.T) {
 	t.Parallel()
