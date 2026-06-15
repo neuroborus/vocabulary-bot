@@ -8,7 +8,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-want_uri='mongodb+srv://user:pass@cluster0.example.test/vocabulary_bot?retryWrites=true&w=majority'
+want_uri='mongodb+srv://user:FAKE_PASSWORD_FOR_TEST_ONLY@cluster0.example.test/vocabulary_bot?retryWrites=true&w=majority'
 
 assert_mongodb_uri() {
 	python3 - <<'PY' "$target" "$root/deploy"
@@ -23,7 +23,7 @@ values = parse_dotenv(path)
 uri = values.get("MONGODB_URI", "")
 if error := validate_mongodb_uri(uri):
     raise SystemExit(error)
-want = "mongodb+srv://user:pass@cluster0.example.test/vocabulary_bot?retryWrites=true&w=majority"
+want = "mongodb+srv://user:FAKE_PASSWORD_FOR_TEST_ONLY@cluster0.example.test/vocabulary_bot?retryWrites=true&w=majority"
 if uri != want:
     raise SystemExit(f"unexpected MONGODB_URI: {uri!r}")
 if values.get("POCKETBOOK_PASSWORD") != "p@ss&word":
