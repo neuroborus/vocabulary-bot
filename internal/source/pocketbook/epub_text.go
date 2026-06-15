@@ -9,11 +9,13 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
 var blockBoundaryPattern = regexp.MustCompile(`(?i)</(p|div|li|h[1-6]|blockquote|section|article)>`)
+var hyphenatedLineBreakPattern = regexp.MustCompile(`([[:alpha:]])-\n([[:alpha:]])`)
 
 func FlattenEPUB(epubPath string) (string, error) {
 	reader, err := zip.OpenReader(epubPath)
@@ -120,6 +122,8 @@ func htmlToPlainText(value string) string {
 func normalizeBookText(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	value = strings.ReplaceAll(value, "\r", "\n")
+	value = strings.ReplaceAll(value, "\u00ad", "")
+	value = hyphenatedLineBreakPattern.ReplaceAllString(value, "$1$2")
 
 	var builder strings.Builder
 	builder.Grow(len(value))
@@ -298,6 +302,15 @@ func resolveWordOffset(text, word string, preferredOffset int) (int, bool) {
 
 	positions := findWordPositions(text, word)
 	if len(positions) == 0 {
+		positions = findWordPositionsFlexible(text, word)
+	}
+	if len(positions) == 0 {
+		if offset, ok := findWordNearOffset(text, word, preferredOffset); ok {
+			return offset, true
+		}
+		if sentence, ok := ExtractSentenceAtOffset(text, preferredOffset); ok && sentenceContainsWord(sentence, word) {
+			return preferredOffset, true
+		}
 		return 0, false
 	}
 	if len(positions) == 1 {
@@ -310,6 +323,106 @@ func resolveWordOffset(text, word string, preferredOffset int) (int, bool) {
 		distance := absInt(position - preferredOffset)
 		if distance < bestDistance {
 			best = position
+			bestDistance = distance
+		}
+	}
+
+	return best, true
+}
+
+func countWordOccurrences(text, word string) int {
+	return len(findWordPositions(text, word)) + len(findWordPositionsFlexible(text, word))
+}
+
+func sentenceContainsWord(sentence, word string) bool {
+	word = strings.TrimSpace(word)
+	if word == "" {
+		return false
+	}
+
+	return len(findWordPositions(sentence, word)) > 0 ||
+		len(findWordPositionsFlexible(sentence, word)) > 0
+}
+
+func findWordPositionsFlexible(text, word string) []int {
+	collapsed, indexMap := collapseHyphenation(text)
+	if len(indexMap) == 0 {
+		return nil
+	}
+
+	positions := findWordPositions(collapsed, word)
+	if len(positions) == 0 {
+		return nil
+	}
+
+	mapped := make([]int, 0, len(positions))
+	for _, position := range positions {
+		if position < 0 || position >= len(indexMap) {
+			continue
+		}
+		mapped = append(mapped, indexMap[position])
+	}
+
+	return mapped
+}
+
+func collapseHyphenation(text string) (string, []int) {
+	text = strings.ReplaceAll(text, "\u00ad", "")
+
+	var (
+		builder  strings.Builder
+		indexMap []int
+	)
+	builder.Grow(len(text))
+	indexMap = make([]int, 0, len(text))
+
+	for byteIndex := 0; byteIndex < len(text); {
+		if text[byteIndex] == '-' && byteIndex+1 < len(text) && text[byteIndex+1] == '\n' {
+			byteIndex++
+			continue
+		}
+		if text[byteIndex] == '\n' || text[byteIndex] == '\r' {
+			byteIndex++
+			continue
+		}
+
+		r, size := utf8.DecodeRuneInString(text[byteIndex:])
+		indexMap = append(indexMap, byteIndex)
+		builder.WriteRune(r)
+		byteIndex += size
+	}
+
+	return builder.String(), indexMap
+}
+
+func findWordNearOffset(text, word string, preferredOffset int) (int, bool) {
+	const window = 512
+
+	start := preferredOffset - window
+	if start < 0 {
+		start = 0
+	}
+	end := preferredOffset + window
+	if end > len(text) {
+		end = len(text)
+	}
+
+	segment := text[start:end]
+	positions := findWordPositions(segment, word)
+	if len(positions) == 0 {
+		positions = findWordPositionsFlexible(segment, word)
+	}
+	if len(positions) == 0 {
+		return 0, false
+	}
+
+	best := positions[0]
+	bestDistance := absInt((start + positions[0]) - preferredOffset)
+	for _, position := range positions[1:] {
+		absolute := start + position
+		distance := absInt(absolute - preferredOffset)
+		if distance < bestDistance {
+			best = absolute
 			bestDistance = distance
 		}
 	}
@@ -352,10 +465,32 @@ func isWordBoundaryMatch(text string, start int, length int) bool {
 
 	end := start + length
 	if end < len(text) && isWordCharacter(text[end]) {
-		return false
+		if text[end] != '\'' || !hasPossessiveSuffix(text, start, length) {
+			return false
+		}
 	}
 
 	return true
+}
+
+func hasPossessiveSuffix(text string, start, length int) bool {
+	end := start + length
+	if end >= len(text) || text[end] != '\'' {
+		return false
+	}
+	if end+1 >= len(text) {
+		return true
+	}
+	if text[end+1] != 's' && text[end+1] != 'S' {
+		return false
+	}
+
+	after := end + 2
+	if after >= len(text) {
+		return true
+	}
+
+	return !isWordCharacter(text[after])
 }
 
 func isWordCharacter(value byte) bool {

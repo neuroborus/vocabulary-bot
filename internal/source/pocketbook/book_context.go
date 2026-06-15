@@ -162,6 +162,7 @@ func (a *Adapter) enrichBookDrafts(ctx context.Context, book Book, drafts []pars
 				slog.String("book_id", book.ID),
 				slog.String("word", entry.draft.RawWord),
 				slog.Int("offset", anchor.Offset),
+				slog.Int("occurrences", countWordOccurrences(bookText, entry.draft.RawWord)),
 			)
 			continue
 		}

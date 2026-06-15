@@ -135,9 +135,9 @@ func TestNormalizeBookTextCollapsesWhitespace(t *testing.T) {
 			want:  "hello world",
 		},
 		{
-			name:  "windows line endings",
-			input: "one\r\n\r\ntwo",
-			want:  "one\ntwo",
+			name:  "hyphenated line break",
+			input: "They used a tea-\nsel to raise the nap.",
+			want:  "They used a teasel to raise the nap.",
 		},
 	}
 
