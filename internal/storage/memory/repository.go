@@ -127,6 +127,15 @@ func (r *VocabularyRepository) Replace(ctx context.Context, item vocabulary.Item
 		return fmt.Errorf("previous normalized key is required")
 	}
 
+	if _, ok := r.items[previousNormalizedKey]; !ok {
+		return fmt.Errorf("vocabulary item %q not found", previousNormalizedKey)
+	}
+	if previousNormalizedKey != item.NormalizedKey {
+		if _, ok := r.items[item.NormalizedKey]; ok {
+			return fmt.Errorf("vocabulary item %q already exists", item.NormalizedKey)
+		}
+	}
+
 	delete(r.items, previousNormalizedKey)
 	r.items[item.NormalizedKey] = cloneItem(item)
 

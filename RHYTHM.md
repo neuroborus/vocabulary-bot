@@ -2,6 +2,10 @@
 
 Chronological log of meaningful repo decisions. **Newest sections first:** add each new `## YYYY-MM-DD` block right below this paragraph, not at the end of the file.
 
+## 2026-06-15
+
+- In-memory vocabulary repository `Replace` now matches Mongo's stricter contract: missing previous keys and normalized-key collisions fail, with focused memory repository tests covering rename, missing-key, and collision behavior.
+
 ## 2026-06-14
 
 - `config.Load` now unwraps single and double quotes for all env values, including quoted cron expressions such as `AUTO_SYNC_CRON='0 9 * * *'`.
