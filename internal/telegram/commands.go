@@ -12,6 +12,7 @@ const (
 	CommandTurnOff   = "/turn_off"
 	CommandTurnOn    = "/turn_on"
 	CommandPush      = "/push"
+	CommandSave      = "/save"
 )
 
 type Notifier interface {
@@ -72,6 +73,10 @@ func KnownCommands() []CommandDescription {
 		{
 			Command:     CommandPush,
 			Description: "Manually send one review word with Easy/Hard buttons",
+		},
+		{
+			Command:     CommandSave,
+			Description: "Save vocabulary from this message or a reply via OpenAI",
 		},
 	}
 }

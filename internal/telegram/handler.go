@@ -20,6 +20,10 @@ type SyncRunner interface {
 	Run(ctx context.Context) (syncer.Summary, error)
 }
 
+type VocabularySaver interface {
+	SaveFromInput(ctx context.Context, input string) (vocabulary.Item, error)
+}
+
 type CommandHandler struct {
 	notifier                  Notifier
 	syncRunner                SyncRunner
@@ -34,6 +38,7 @@ type CommandHandler struct {
 	syncEnabled               bool
 	notificationsEnabled      bool
 	reviewSelection           review.SelectionOptions
+	vocabularySaver           VocabularySaver
 	now                       func() time.Time
 }
 
@@ -49,6 +54,7 @@ type CommandHandlerOptions struct {
 	SyncEnabled               bool
 	NotificationsEnabled      bool
 	ReviewSelection           review.SelectionOptions
+	VocabularySaver           VocabularySaver
 	Now                       func() time.Time
 }
 
@@ -72,6 +78,7 @@ func NewCommandHandler(options CommandHandlerOptions) *CommandHandler {
 		syncEnabled:               options.SyncEnabled,
 		notificationsEnabled:      options.NotificationsEnabled,
 		reviewSelection:           options.ReviewSelection,
+		vocabularySaver:           options.VocabularySaver,
 		now:                       options.Now,
 	}
 }
@@ -113,7 +120,7 @@ func (h *CommandHandler) HandleMessage(ctx context.Context, message Message) err
 	}
 
 	return runWithChatAction(ctx, h.notifier, chatID, commandChatAction(command), func(ctx context.Context) error {
-		return h.dispatchCommand(ctx, chatID, message.From.ID, command)
+		return h.dispatchCommand(ctx, chatID, message.From.ID, command, message)
 	})
 }
 
@@ -139,7 +146,7 @@ func commandChatAction(command string) string {
 	}
 }
 
-func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID int64, command string) error {
+func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID int64, command string, message Message) error {
 	switch command {
 	case CommandStart:
 		return h.sendHTMLMessage(ctx, chatID, formatStartMessage())
@@ -161,9 +168,43 @@ func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID i
 		return h.sendHTMLMessage(ctx, chatID, formatNotice("Sync and notifications enabled", ""))
 	case CommandPush:
 		return h.handlePush(ctx, chatID)
+	case CommandSave:
+		return h.handleSave(ctx, chatID, message)
 	default:
 		return h.sendHTMLMessage(ctx, chatID, formatError("Unknown command", "")+"\n\n"+formatCommandsBlock())
 	}
+}
+
+func (h *CommandHandler) handleSave(ctx context.Context, chatID int64, message Message) error {
+	if h.vocabularySaver == nil {
+		return h.sendHTMLMessage(ctx, chatID, formatError("Save is not configured", "Set OPENAI_API_KEY and Google Sheets credentials."))
+	}
+
+	input, err := extractSaveInput(message)
+	if err != nil {
+		return h.sendHTMLMessage(
+			ctx,
+			chatID,
+			formatError(
+				"Save input is empty",
+				"Tag the bot with <code>/save</code> and text, or reply to a message with <code>/save</code>.",
+			),
+		)
+	}
+
+	item, err := h.vocabularySaver.SaveFromInput(ctx, input)
+	if err != nil {
+		return h.sendHTMLMessage(ctx, chatID, formatError("Save failed", logging.SanitizeError(err)))
+	}
+
+	h.logger.Info(
+		"vocabulary saved from telegram",
+		slog.String("normalized_key", item.NormalizedKey),
+		slog.String("display_word", item.DisplayWord),
+		slog.Int64("chat_id", chatID),
+	)
+
+	return h.sendHTMLMessage(ctx, chatID, formatReviewReminder(item, h.reviewSpoilerTranslations))
 }
 
 func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query CallbackQuery) error {

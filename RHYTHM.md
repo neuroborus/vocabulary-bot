@@ -4,7 +4,8 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-15
 
-- `/health` now includes the current chat ID and caller user ID to simplify allowlist setup.
+- `/save` structures vocabulary with OpenAI, appends a row to Google Sheets, merges it into storage, and replies in push card format. Translation language is configured with `OPENAI_TRANSLATION_LANGUAGE` (default `Russian`).
+- `/health` includes the current chat ID and caller user ID to simplify allowlist setup.
 - `/sync` and `/logs` are accepted only from the admin private chat (`TELEGRAM_ADMIN_ID` with `chat.type=private`). Scheduled sync/log delivery is unchanged.
 - Telegram env vars are now `TELEGRAM_ADMIN_ID` and `TELEGRAM_TARGET_CHANNEL_ID`. Admin and target channel chats are always allowlisted; `TELEGRAM_ALLOWED_CHAT_IDS` adds optional extra chats.
 - In-memory vocabulary repository `Replace` now matches Mongo's stricter contract: missing previous keys and normalized-key collisions fail, with focused memory repository tests covering rename, missing-key, and collision behavior.

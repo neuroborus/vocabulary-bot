@@ -71,7 +71,7 @@ func Run(ctx context.Context) error {
 	}
 
 	if shouldRunTelegram(cfg) {
-		if err := runTelegram(ctx, cfg, logger, repository, syncService); err != nil && !errors.Is(err, context.Canceled) {
+		if err := runTelegram(ctx, cfg, logger, repository, syncService, vocabularyService); err != nil && !errors.Is(err, context.Canceled) {
 			return err
 		}
 	} else if cfg.Telegram.BotToken != "" && cfg.Telegram.PollingEnabled && cfg.Telegram.AdminID == 0 {
@@ -164,9 +164,15 @@ func runTelegram(
 	logger *slog.Logger,
 	repository vocabulary.Repository,
 	syncService *syncer.Service,
+	vocabularyService *vocabulary.Service,
 ) error {
 	if cfg.Telegram.AdminID == 0 {
 		return errors.New("TELEGRAM_ADMIN_ID is required when Telegram polling is enabled")
+	}
+
+	saveService, err := buildSaveService(ctx, cfg, vocabularyService, repository)
+	if err != nil {
+		return err
 	}
 
 	client := telegram.NewClient(telegram.ClientOptions{
@@ -188,6 +194,7 @@ func runTelegram(
 		LogPath:              cfg.LogPath,
 		SyncEnabled:          cfg.SyncEnabled,
 		NotificationsEnabled: cfg.NotificationsEnabled,
+		VocabularySaver:      saveService,
 	})
 	bot := telegram.NewBot(client, handler, telegramChatAllowlist(cfg), logger)
 

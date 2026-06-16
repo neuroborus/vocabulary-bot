@@ -228,6 +228,49 @@ func TestCommandHandlerLogsRejectedOutsideAdminPrivateChat(t *testing.T) {
 	}
 }
 
+func TestCommandHandlerSaveRepliesWithPushFormat(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	saver := &fakeVocabularySaver{
+		item: vocabulary.Item{
+			NormalizedKey: "teasel",
+			DisplayWord:   "teasel",
+			Translations:  []string{"чесало"},
+			Contexts:      []string{"Pat Teasely walked in."},
+			Anchors: []vocabulary.SourceAnchor{
+				{Source: vocabulary.SourceGoogleSheet, SheetName: "Vocabulary"},
+			},
+		},
+	}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:        notifier,
+		AdminID:         42,
+		VocabularySaver: saver,
+	})
+
+	err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: CommandSave + " teasel",
+	})
+	if err != nil {
+		t.Fatalf("HandleMessage() error = %v", err)
+	}
+	if saver.input != "teasel" {
+		t.Fatalf("input = %q, want teasel", saver.input)
+	}
+	if len(notifier.messages) != 1 {
+		t.Fatalf("messages = %d, want 1", len(notifier.messages))
+	}
+	if !strings.Contains(notifier.messages[0].text, "<b>teasel</b>") {
+		t.Fatalf("message = %q", notifier.messages[0].text)
+	}
+	if !strings.Contains(notifier.messages[0].text, "чесало") {
+		t.Fatalf("message = %q, want translation", notifier.messages[0].text)
+	}
+}
+
 func TestBotCommandsAreTelegramMenuCompatible(t *testing.T) {
 	t.Parallel()
 
@@ -667,6 +710,20 @@ func TestRunAutoLogsSkipsWhenNotificationsDisabled(t *testing.T) {
 	if len(notifier.documents) != 0 {
 		t.Fatalf("documents = %d, want none", len(notifier.documents))
 	}
+}
+
+type fakeVocabularySaver struct {
+	input string
+	item  vocabulary.Item
+	err   error
+}
+
+func (s *fakeVocabularySaver) SaveFromInput(ctx context.Context, input string) (vocabulary.Item, error) {
+	s.input = input
+	if s.err != nil {
+		return vocabulary.Item{}, s.err
+	}
+	return s.item, nil
 }
 
 type fakeSyncRunner struct {

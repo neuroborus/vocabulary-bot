@@ -99,6 +99,18 @@ func TestLoadEnvValidation(t *testing.T) {
 		}
 	})
 
+	t.Run("defaults openai translation language", func(t *testing.T) {
+		t.Setenv("OPENAI_TRANSLATION_LANGUAGE", "")
+
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.OpenAI.TranslationLanguage != "Russian" {
+			t.Fatalf("TranslationLanguage = %q, want Russian", cfg.OpenAI.TranslationLanguage)
+		}
+	})
+
 	t.Run("uses defaults when typed env unset", func(t *testing.T) {
 		t.Setenv("SYNC_ENABLED", "")
 		t.Setenv("POCKETBOOK_BOOK_CACHE_MAX", "")

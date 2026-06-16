@@ -28,10 +28,11 @@ type CallbackQuery struct {
 }
 
 type Message struct {
-	MessageID int    `json:"message_id"`
-	From      User   `json:"from"`
-	Chat      Chat   `json:"chat"`
-	Text      string `json:"text"`
+	MessageID      int      `json:"message_id"`
+	From           User     `json:"from"`
+	Chat           Chat     `json:"chat"`
+	Text           string   `json:"text"`
+	ReplyToMessage *Message `json:"reply_to_message"`
 }
 
 type User struct {
