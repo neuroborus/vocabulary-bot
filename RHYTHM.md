@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-16
 
+- Empty `/save` in groups now always shows the privacy/admin workaround hint, and failed group saves log whether Telegram sent `reply_to_message` or `quote`.
 - `/save` reply handling now reads Telegram `quote` text and replied message captions, which fixes group replies where `reply_to_message.text` is empty; the empty-reply prompt now mentions group privacy and admin workarounds.
 - `TELEGRAM_LEAVE_DISALLOWED_CHATS` (default `true`) controls whether the bot calls `leaveChat` for groups and channels outside the allowlist; when `false`, disallowed updates are still ignored.
 - `/save` confirmation now explains that local import happens on the scheduled sync and that only an admin can run `/sync` in private chat for an immediate import.
