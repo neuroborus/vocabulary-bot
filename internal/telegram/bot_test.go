@@ -40,7 +40,7 @@ func TestBotLeavesDisallowedSupergroupMessage(t *testing.T) {
 		Notifier: notifier,
 		AdminID:  42,
 	})
-	bot := NewBot(client, handler, NewChatAllowlist([]int64{42, 200}), nil)
+	bot := NewBot(client, handler, NewChatAllowlist([]int64{42, 200}), true, nil)
 
 	err := bot.handleUpdate(context.Background(), Update{
 		Message: &Message{
@@ -78,7 +78,7 @@ func TestBotLeavesDisallowedChatWhenAdded(t *testing.T) {
 		BotToken: "fake-token",
 		BaseURL:  server.URL,
 	})
-	bot := NewBot(client, NewCommandHandler(CommandHandlerOptions{}), NewChatAllowlist([]int64{42}), nil)
+	bot := NewBot(client, NewCommandHandler(CommandHandlerOptions{}), NewChatAllowlist([]int64{42}), true, nil)
 
 	err := bot.handleUpdate(context.Background(), Update{
 		MyChatMember: &ChatMemberUpdated{
@@ -96,6 +96,47 @@ func TestBotLeavesDisallowedChatWhenAdded(t *testing.T) {
 	}
 }
 
+func TestBotDoesNotLeaveDisallowedChatWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	var leaveCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/botfake-token/leaveChat" {
+			leaveCalls++
+		}
+		t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier: notifier,
+		AdminID:  42,
+	})
+	bot := NewBot(client, handler, NewChatAllowlist([]int64{42, 200}), false, nil)
+
+	err := bot.handleUpdate(context.Background(), Update{
+		Message: &Message{
+			From: User{ID: 42},
+			Chat: Chat{ID: -100999, Type: "supergroup"},
+			Text: CommandHealth,
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleUpdate() error = %v", err)
+	}
+	if leaveCalls != 0 {
+		t.Fatalf("leaveCalls = %d, want 0", leaveCalls)
+	}
+	if len(notifier.messages) != 0 {
+		t.Fatalf("messages = %#v, want none", notifier.messages)
+	}
+}
+
 func TestBotRejectsSaveFromDisallowedChat(t *testing.T) {
 	t.Parallel()
 
@@ -108,7 +149,7 @@ func TestBotRejectsSaveFromDisallowedChat(t *testing.T) {
 		AdminID:         42,
 		VocabularySaver: saver,
 	})
-	bot := NewBot(nil, handler, NewChatAllowlist([]int64{42}), nil)
+	bot := NewBot(nil, handler, NewChatAllowlist([]int64{42}), true, nil)
 
 	err := bot.handleUpdate(context.Background(), Update{
 		Message: &Message{
@@ -143,7 +184,7 @@ func TestBotAllowsSaveFromNonAdminInAllowedChat(t *testing.T) {
 		AdminID:         42,
 		VocabularySaver: saver,
 	})
-	bot := NewBot(nil, handler, NewChatAllowlist([]int64{200}), nil)
+	bot := NewBot(nil, handler, NewChatAllowlist([]int64{200}), true, nil)
 
 	err := bot.handleUpdate(context.Background(), Update{
 		Message: &Message{
@@ -171,7 +212,7 @@ func TestBotAllowsListedChat(t *testing.T) {
 		Notifier: notifier,
 		AdminID:  42,
 	})
-	bot := NewBot(nil, handler, NewChatAllowlist([]int64{200}), nil)
+	bot := NewBot(nil, handler, NewChatAllowlist([]int64{200}), true, nil)
 
 	err := bot.handleUpdate(context.Background(), Update{
 		Message: &Message{
