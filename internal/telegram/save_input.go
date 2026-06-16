@@ -9,9 +9,14 @@ var errEmptySaveInput = errors.New("save input is empty")
 
 func extractSaveInput(message Message) (string, error) {
 	if message.ReplyToMessage != nil {
-		replyText := strings.TrimSpace(message.ReplyToMessage.Text)
-		if replyText != "" {
+		if replyText := messageText(message.ReplyToMessage); replyText != "" {
 			return replyText, nil
+		}
+	}
+
+	if message.Quote != nil {
+		if quoted := strings.TrimSpace(message.Quote.Text); quoted != "" {
+			return quoted, nil
 		}
 	}
 
@@ -21,6 +26,22 @@ func extractSaveInput(message Message) (string, error) {
 	}
 
 	return remainder, nil
+}
+
+func messageText(message *Message) string {
+	if message == nil {
+		return ""
+	}
+
+	if text := strings.TrimSpace(message.Text); text != "" {
+		return text
+	}
+
+	return strings.TrimSpace(message.Caption)
+}
+
+func saveReplyHadNoReadableText(message Message) bool {
+	return message.ReplyToMessage != nil || message.Quote != nil
 }
 
 func stripCommandToken(text, command string) string {

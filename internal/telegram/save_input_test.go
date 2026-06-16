@@ -61,6 +61,58 @@ func TestExtractSaveInputAroundCommand(t *testing.T) {
 	}
 }
 
+func TestExtractSaveInputFromQuote(t *testing.T) {
+	t.Parallel()
+
+	input, err := extractSaveInput(Message{
+		Text: CommandSave,
+		ReplyToMessage: &Message{
+			MessageID: 99,
+		},
+		Quote: &TextQuote{
+			Text: "fit the bill - подходить под описание",
+		},
+	})
+	if err != nil {
+		t.Fatalf("extractSaveInput() error = %v", err)
+	}
+	if input != "fit the bill - подходить под описание" {
+		t.Fatalf("input = %q", input)
+	}
+}
+
+func TestExtractSaveInputFromReplyCaption(t *testing.T) {
+	t.Parallel()
+
+	input, err := extractSaveInput(Message{
+		Text: CommandSave,
+		ReplyToMessage: &Message{
+			Caption: "photo caption text",
+		},
+	})
+	if err != nil {
+		t.Fatalf("extractSaveInput() error = %v", err)
+	}
+	if input != "photo caption text" {
+		t.Fatalf("input = %q", input)
+	}
+}
+
+func TestSaveReplyHadNoReadableText(t *testing.T) {
+	t.Parallel()
+
+	if !saveReplyHadNoReadableText(Message{
+		Text:           CommandSave,
+		ReplyToMessage: &Message{},
+	}) {
+		t.Fatal("saveReplyHadNoReadableText() = false, want true for empty reply")
+	}
+
+	if saveReplyHadNoReadableText(Message{Text: CommandSave}) {
+		t.Fatal("saveReplyHadNoReadableText() = true, want false without reply")
+	}
+}
+
 func TestExtractSaveInputRequiresContent(t *testing.T) {
 	t.Parallel()
 
