@@ -59,7 +59,7 @@ test/fixtures/               sanitized external payload fixtures
 
 ## Telegram
 
-When `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_ID`, and `TELEGRAM_POLLING_ENABLED=true` are configured, the app starts Telegram long polling after startup sync.
+When `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_ID`, and `TELEGRAM_POLLING_ENABLED=true` are configured, the app starts Telegram long polling after startup sync.
 
 Commands:
 
@@ -75,7 +75,7 @@ Commands:
 /push       Manually send one review word with Easy/Hard buttons
 ```
 
-Only `TELEGRAM_ALLOWED_USER_ID` may run commands. Service notifications go to that user. Review cards go to `TELEGRAM_TARGET_CHAT_ID` — for example, a public channel like [t.me/vocabulary_list](https://t.me/vocabulary_list).
+Only `TELEGRAM_ADMIN_ID` may run commands. `/sync` and `/logs` work only in a private chat with the bot (`chat_id` equals `TELEGRAM_ADMIN_ID`). Other commands and review callbacks are accepted in allowlisted chats: `TELEGRAM_ADMIN_ID`, `TELEGRAM_TARGET_CHANNEL_ID`, plus any IDs in `TELEGRAM_ALLOWED_CHAT_IDS`. The bot leaves other groups and channels. Service notifications go to the admin. Review cards go to `TELEGRAM_TARGET_CHANNEL_ID` — for example, a public channel like [t.me/vocabulary_list](https://t.me/vocabulary_list).
 
 Push cards show source at the bottom (`Title — Author` for books, sheet name or `Document` for spreadsheet/PDF words), hide translations behind a spoiler by default, and update in place after Easy/Hard is chosen.
 

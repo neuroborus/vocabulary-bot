@@ -1,9 +1,23 @@
 package telegram
 
 type Update struct {
-	UpdateID      int            `json:"update_id"`
-	Message       *Message       `json:"message"`
-	CallbackQuery *CallbackQuery `json:"callback_query"`
+	UpdateID      int                `json:"update_id"`
+	Message       *Message           `json:"message"`
+	CallbackQuery *CallbackQuery     `json:"callback_query"`
+	MyChatMember  *ChatMemberUpdated `json:"my_chat_member"`
+}
+
+type ChatMemberUpdated struct {
+	Chat          Chat       `json:"chat"`
+	From          User       `json:"from"`
+	Date          int        `json:"date"`
+	OldChatMember ChatMember `json:"old_chat_member"`
+	NewChatMember ChatMember `json:"new_chat_member"`
+}
+
+type ChatMember struct {
+	User   User   `json:"user"`
+	Status string `json:"status"`
 }
 
 type CallbackQuery struct {

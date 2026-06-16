@@ -510,7 +510,7 @@ The bot should only accept commands and button presses from the configured allow
 Required secret/config value:
 
 ```text
-TELEGRAM_ALLOWED_USER_ID
+TELEGRAM_ADMIN_ID
 ```
 
 Messages can be sent either directly to the user or to a configured channel/chat.
@@ -518,7 +518,7 @@ Messages can be sent either directly to the user or to a configured channel/chat
 Optional config value:
 
 ```text
-TELEGRAM_TARGET_CHAT_ID
+TELEGRAM_TARGET_CHANNEL_ID
 ```
 
 ---
@@ -574,7 +574,7 @@ Hard:
 - edit the push card in place, remove buttons, and append the chosen result.
 ```
 
-Button presses should be accepted only from `TELEGRAM_ALLOWED_USER_ID`.
+Button presses should be accepted only from `TELEGRAM_ADMIN_ID`.
 
 ---
 
@@ -779,7 +779,7 @@ Recommended behavior:
 Weekly job:
 
 ```text
-1. Send the active `LOG_PATH` file to TELEGRAM_ALLOWED_USER_ID.
+1. Send the active `LOG_PATH` file to TELEGRAM_ADMIN_ID.
 2. If Telegram delivery succeeds, truncate `LOG_PATH`.
 3. If Telegram delivery fails, keep the active log and retry on the next scheduled run.
 ```
@@ -916,8 +916,8 @@ MONGODB_URI=
 MONGODB_DB_NAME=
 
 TELEGRAM_BOT_TOKEN=
-TELEGRAM_ALLOWED_USER_ID=
-TELEGRAM_TARGET_CHAT_ID=
+TELEGRAM_ADMIN_ID=
+TELEGRAM_TARGET_CHANNEL_ID=
 TELEGRAM_POLLING_ENABLED=true
 TELEGRAM_API_BASE_URL=
 

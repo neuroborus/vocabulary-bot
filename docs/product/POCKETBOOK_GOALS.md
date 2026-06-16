@@ -131,7 +131,7 @@ POCKETBOOK_PASSWORD     -> GitHub Actions secret, bootstrap-only if the workflow
 POCKETBOOK_REFRESH_TOKEN -> optional GitHub Actions secret override if DB token storage is not used
 MONGODB_URI             -> GitHub Actions secret
 TELEGRAM_BOT_TOKEN      -> GitHub Actions secret
-TELEGRAM_ALLOWED_USER_ID -> GitHub Actions secret
+TELEGRAM_ADMIN_ID -> GitHub Actions secret
 ```
 
 If GitHub Actions uses MongoDB as the persistent application database, it also uses MongoDB as the token store. That avoids manually rotating `POCKETBOOK_REFRESH_TOKEN` in repository secrets after the initial bootstrap flow.
@@ -550,7 +550,7 @@ All application logs must be saved to a log file.
 A weekly job must:
 
 ```text
-1. send the current LOG_PATH file to TELEGRAM_ALLOWED_USER_ID
+1. send the current LOG_PATH file to TELEGRAM_ADMIN_ID
 2. only after successful Telegram delivery, truncate the active log file
 3. on delivery failure, keep the active log and retry on the next AUTO_LOGS_CRON run
 ```

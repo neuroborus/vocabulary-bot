@@ -48,8 +48,9 @@ Add the deploy public key to `~/.ssh/authorized_keys` for the deploy user.
 | `SYNC_ENABLED` | `true` | Master sync switch |
 | `NOTIFICATIONS_ENABLED` | `true` | Telegram notifications |
 | `MONGODB_DB_NAME` | `vocabulary_bot` | MongoDB database name |
-| `TELEGRAM_ALLOWED_USER_ID` | `490734700` | Allowed command user |
-| `TELEGRAM_TARGET_CHAT_ID` | `-1004299028040` | Review push target chat |
+| `TELEGRAM_ADMIN_ID` | `490734700` | Admin user allowed to run commands |
+| `TELEGRAM_ALLOWED_CHAT_IDS` | empty | Optional extra allowlisted chats |
+| `TELEGRAM_TARGET_CHANNEL_ID` | `-1004299028040` | Review push target channel |
 | `TELEGRAM_POLLING_ENABLED` | `true` | Start Telegram long polling |
 | `TELEGRAM_API_BASE_URL` | empty | Optional Bot API override |
 | `TELEGRAM_REVIEW_SPOILER_TRANSLATIONS` | `true` | Hide translations behind spoiler |

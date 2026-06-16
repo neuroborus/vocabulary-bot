@@ -25,8 +25,8 @@ func formatInfoMessage(health string) string {
 	return health + "\n\n" + formatCommandsBlock()
 }
 
-func formatHealthMessage(status string, wordCount int, syncEnabled, notificationsEnabled bool) string {
-	return fmt.Sprintf(
+func formatHealthMessage(status string, wordCount int, syncEnabled, notificationsEnabled bool, chatID, callerID int64) string {
+	message := fmt.Sprintf(
 		"<b>Health</b>\n"+
 			"Status: %s\n"+
 			"Words: <b>%d</b>\n"+
@@ -37,6 +37,14 @@ func formatHealthMessage(status string, wordCount int, syncEnabled, notification
 		boolLabel(syncEnabled),
 		boolLabel(notificationsEnabled),
 	)
+	if chatID != 0 {
+		message += fmt.Sprintf("\nChat ID: <code>%d</code>", chatID)
+	}
+	if callerID != 0 {
+		message += fmt.Sprintf("\nCaller ID: <code>%d</code>", callerID)
+	}
+
+	return message
 }
 
 func formatSyncSummary(summary syncer.Summary) string {
