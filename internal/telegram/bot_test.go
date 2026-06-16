@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/neuroborus/vocabulary-bot/internal/save"
 )
 
 func TestBotLeavesDisallowedSupergroupMessage(t *testing.T) {
@@ -91,6 +93,73 @@ func TestBotLeavesDisallowedChatWhenAdded(t *testing.T) {
 	}
 	if leaveCalls != 1 {
 		t.Fatalf("leaveCalls = %d, want 1", leaveCalls)
+	}
+}
+
+func TestBotRejectsSaveFromDisallowedChat(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	saver := &fakeVocabularySaver{
+		result: save.Result{Word: "teasel"},
+	}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:        notifier,
+		AdminID:         42,
+		VocabularySaver: saver,
+	})
+	bot := NewBot(nil, handler, NewChatAllowlist([]int64{42}), nil)
+
+	err := bot.handleUpdate(context.Background(), Update{
+		Message: &Message{
+			From: User{ID: 100},
+			Chat: Chat{ID: 200, Type: "private"},
+			Text: CommandSave + " teasel",
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleUpdate() error = %v", err)
+	}
+	if saver.input != "" {
+		t.Fatalf("input = %q, want rejected before handler", saver.input)
+	}
+	if len(notifier.messages) != 0 {
+		t.Fatalf("messages = %#v, want none", notifier.messages)
+	}
+}
+
+func TestBotAllowsSaveFromNonAdminInAllowedChat(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	saver := &fakeVocabularySaver{
+		result: save.Result{
+			Word:      "teasel",
+			RowNumber: 42,
+		},
+	}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:        notifier,
+		AdminID:         42,
+		VocabularySaver: saver,
+	})
+	bot := NewBot(nil, handler, NewChatAllowlist([]int64{200}), nil)
+
+	err := bot.handleUpdate(context.Background(), Update{
+		Message: &Message{
+			From: User{ID: 100},
+			Chat: Chat{ID: 200, Type: "private"},
+			Text: CommandSave + " teasel",
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleUpdate() error = %v", err)
+	}
+	if saver.input != "teasel" {
+		t.Fatalf("input = %q, want teasel", saver.input)
+	}
+	if len(notifier.messages) != 1 {
+		t.Fatalf("messages = %d, want save confirmation", len(notifier.messages))
 	}
 }
 

@@ -88,17 +88,19 @@ func (h *CommandHandler) HandleMessage(ctx context.Context, message Message) err
 	if strings.TrimSpace(message.Text) == "" {
 		return nil
 	}
-	if h.adminID != 0 && message.From.ID != h.adminID {
-		h.logger.Warn(
-			"telegram message rejected",
-			slog.Int64("from_user_id", message.From.ID),
-			slog.Int64("chat_id", message.Chat.ID),
-		)
-		return nil
-	}
 
 	command := parseCommand(message.Text)
 	if command == "" {
+		return nil
+	}
+
+	if h.adminID != 0 && message.From.ID != h.adminID && commandRequiresAdminUser(command) {
+		h.logger.Warn(
+			"telegram command rejected",
+			slog.String("command", command),
+			slog.Int64("from_user_id", message.From.ID),
+			slog.Int64("chat_id", message.Chat.ID),
+		)
 		return nil
 	}
 
@@ -123,6 +125,10 @@ func (h *CommandHandler) HandleMessage(ctx context.Context, message Message) err
 	return runWithChatAction(ctx, h.notifier, chatID, commandChatAction(command), func(ctx context.Context) error {
 		return h.dispatchCommand(ctx, chatID, message.From.ID, command, message)
 	})
+}
+
+func commandRequiresAdminUser(command string) bool {
+	return command != CommandSave
 }
 
 func commandRequiresAdminPrivateChat(command string) bool {

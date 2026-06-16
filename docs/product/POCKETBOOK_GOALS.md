@@ -599,7 +599,7 @@ The bot must support these commands:
   Send the current log file without clearing it.
 ```
 
-Only the configured allowed Telegram user ID may execute commands or press review buttons.
+Admin commands and review buttons require the configured admin Telegram user ID. `/save` may be executed by any user in an allowlisted chat.
 
 ## 16. Error handling
 

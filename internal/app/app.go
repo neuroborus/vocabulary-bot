@@ -201,12 +201,14 @@ func runTelegram(
 	if err := client.SetMyCommands(ctx, botCommands); err != nil {
 		logger.Error("telegram command menu setup failed", slog.String("error", logging.SanitizeError(err)))
 	}
-	if err := client.SetMyCommandsForChat(ctx, cfg.Telegram.AdminID, botCommands); err != nil {
-		logger.Error(
-			"telegram admin command menu setup failed",
-			slog.Int64("chat_id", cfg.Telegram.AdminID),
-			slog.String("error", logging.SanitizeError(err)),
-		)
+	for _, chatID := range telegramCommandMenuChatIDs(cfg) {
+		if err := client.SetMyCommandsForChat(ctx, chatID, botCommands); err != nil {
+			logger.Error(
+				"telegram chat command menu setup failed",
+				slog.Int64("chat_id", chatID),
+				slog.String("error", logging.SanitizeError(err)),
+			)
+		}
 	}
 
 	serviceNotifier := telegram.NewServiceNotifier(client, cfg.Telegram.AdminID)
@@ -226,6 +228,30 @@ func runTelegram(
 
 	logger.Info("telegram polling started")
 	return bot.Poll(ctx)
+}
+
+func telegramCommandMenuChatIDs(cfg config.Config) []int64 {
+	seen := make(map[int64]struct{})
+	ids := make([]int64, 0, len(cfg.Telegram.AllowedChatIDs)+2)
+
+	appendID := func(id int64) {
+		if id == 0 {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+
+	appendID(cfg.Telegram.AdminID)
+	appendID(cfg.Telegram.TargetChannelID)
+	for _, id := range cfg.Telegram.AllowedChatIDs {
+		appendID(id)
+	}
+
+	return ids
 }
 
 func startScheduler(ctx context.Context, cfg config.Config, handler *telegram.CommandHandler, logger *slog.Logger) error {
