@@ -203,7 +203,7 @@ func runTelegram(
 		NotificationsEnabled: cfg.NotificationsEnabled,
 		VocabularySaver:      vocabularySaver,
 	})
-	bot := telegram.NewBot(client, handler, telegramChatAllowlist(cfg), logger)
+	bot := telegram.NewBot(client, handler, telegramChatAllowlist(cfg), cfg.Telegram.LeaveDisallowedChats, logger)
 
 	botCommands := telegram.BotCommands()
 	if err := client.SetMyCommands(ctx, botCommands); err != nil {

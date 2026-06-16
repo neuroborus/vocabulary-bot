@@ -129,6 +129,9 @@ func TestLoadEnvValidation(t *testing.T) {
 		if cfg.Review.DocumentPushFactor != 0.7 {
 			t.Fatalf("DocumentPushFactor = %v, want 0.7", cfg.Review.DocumentPushFactor)
 		}
+		if !cfg.Telegram.LeaveDisallowedChats {
+			t.Fatal("LeaveDisallowedChats = false, want default true")
+		}
 	})
 
 	t.Run("accepts quoted and plain env values", func(t *testing.T) {

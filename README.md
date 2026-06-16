@@ -76,7 +76,7 @@ Commands:
 /save       Append vocabulary from a message or reply to Google Sheets via OpenAI
 ```
 
-Only `TELEGRAM_ADMIN_ID` may run admin commands. `/save` is accepted from any user inside allowlisted chats: `TELEGRAM_ADMIN_ID`, `TELEGRAM_TARGET_CHANNEL_ID`, plus any IDs in `TELEGRAM_ALLOWED_CHAT_IDS`. `/sync` and `/logs` work only in a private chat with the bot (`chat_id` equals `TELEGRAM_ADMIN_ID`). Review callbacks are accepted only from the admin user. The bot leaves other groups and channels. Service notifications go to the admin. Review cards go to `TELEGRAM_TARGET_CHANNEL_ID` — for example, a public channel like [t.me/vocabulary_list](https://t.me/vocabulary_list).
+Only `TELEGRAM_ADMIN_ID` may run admin commands. `/save` is accepted from any user inside allowlisted chats: `TELEGRAM_ADMIN_ID`, `TELEGRAM_TARGET_CHANNEL_ID`, plus any IDs in `TELEGRAM_ALLOWED_CHAT_IDS`. `/sync` and `/logs` work only in a private chat with the bot (`chat_id` equals `TELEGRAM_ADMIN_ID`). Review callbacks are accepted only from the admin user. By default the bot leaves other groups and channels; set `TELEGRAM_LEAVE_DISALLOWED_CHATS=false` to disable auto-leave while still ignoring updates from non-allowlisted chats. Service notifications go to the admin. Review cards go to `TELEGRAM_TARGET_CHANNEL_ID` — for example, a public channel like [t.me/vocabulary_list](https://t.me/vocabulary_list).
 
 `/save` structures the message with OpenAI and appends one row to Google Sheets only. Use it as a reply to the message you want to save, or write the text before or after `/save`. The new row is imported into local storage by the normal `/sync` path.
 

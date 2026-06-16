@@ -47,6 +47,7 @@ type TelegramConfig struct {
 	APIBaseURL                string
 	PollingEnabled            bool
 	ReviewSpoilerTranslations bool
+	LeaveDisallowedChats      bool
 }
 
 type PocketBookConfig struct {
@@ -113,6 +114,11 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	leaveDisallowedChats, err := getenvBool("TELEGRAM_LEAVE_DISALLOWED_CHATS", true)
+	if err != nil {
+		return Config{}, err
+	}
+
 	documentPushFactor, err := getenvFloat("REVIEW_DOCUMENT_PUSH_FACTOR", 0.7)
 	if err != nil {
 		return Config{}, err
@@ -160,6 +166,7 @@ func Load() (Config, error) {
 			APIBaseURL:                getenv("TELEGRAM_API_BASE_URL", ""),
 			PollingEnabled:            pollingEnabled,
 			ReviewSpoilerTranslations: reviewSpoilerTranslations,
+			LeaveDisallowedChats:      leaveDisallowedChats,
 		},
 		Review: ReviewConfig{
 			DocumentPushFactor: documentPushFactor,

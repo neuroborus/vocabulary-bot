@@ -9,22 +9,24 @@ import (
 )
 
 type Bot struct {
-	client    *Client
-	handler   *CommandHandler
-	allowlist ChatAllowlist
-	logger    *slog.Logger
+	client               *Client
+	handler              *CommandHandler
+	allowlist            ChatAllowlist
+	leaveDisallowedChats bool
+	logger               *slog.Logger
 }
 
-func NewBot(client *Client, handler *CommandHandler, allowlist ChatAllowlist, logger *slog.Logger) *Bot {
+func NewBot(client *Client, handler *CommandHandler, allowlist ChatAllowlist, leaveDisallowedChats bool, logger *slog.Logger) *Bot {
 	if logger == nil {
 		logger = slog.Default()
 	}
 
 	return &Bot{
-		client:    client,
-		handler:   handler,
-		allowlist: allowlist,
-		logger:    logger,
+		client:               client,
+		handler:              handler,
+		allowlist:            allowlist,
+		leaveDisallowedChats: leaveDisallowedChats,
+		logger:               logger,
 	}
 }
 
@@ -105,9 +107,10 @@ func (b *Bot) leaveDisallowedChat(ctx context.Context, chat Chat) error {
 		"telegram chat is not allowlisted",
 		slog.Int64("chat_id", chat.ID),
 		slog.String("chat_type", chat.Type),
+		slog.Bool("leave_enabled", b.leaveDisallowedChats),
 	)
 
-	if !isGroupLikeChat(chat.Type) {
+	if !b.leaveDisallowedChats || !isGroupLikeChat(chat.Type) {
 		return nil
 	}
 
