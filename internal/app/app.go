@@ -74,6 +74,8 @@ func Run(ctx context.Context) error {
 		if err := runTelegram(ctx, cfg, logger, repository, syncService); err != nil && !errors.Is(err, context.Canceled) {
 			return err
 		}
+	} else if cfg.Telegram.BotToken != "" && cfg.Telegram.PollingEnabled && cfg.Telegram.AdminID == 0 {
+		logger.Info("telegram polling disabled because TELEGRAM_ADMIN_ID is not set")
 	}
 
 	return nil
@@ -149,7 +151,11 @@ func buildSources(cfg config.Config, logger *slog.Logger, sessionStore pocketboo
 }
 
 func shouldRunTelegram(cfg config.Config) bool {
-	return cfg.Telegram.BotToken != "" && cfg.Telegram.PollingEnabled
+	return cfg.Telegram.BotToken != "" && cfg.Telegram.PollingEnabled && cfg.Telegram.AdminID != 0
+}
+
+func telegramChatAllowlist(cfg config.Config) telegram.ChatAllowlist {
+	return telegram.BuildChatAllowlist(cfg.Telegram.AllowedChatIDs, cfg.Telegram.AdminID, cfg.Telegram.TargetChannelID)
 }
 
 func runTelegram(
@@ -159,8 +165,8 @@ func runTelegram(
 	repository vocabulary.Repository,
 	syncService *syncer.Service,
 ) error {
-	if cfg.Telegram.AllowedUserID == 0 {
-		return errors.New("TELEGRAM_ALLOWED_USER_ID is required when Telegram polling is enabled")
+	if cfg.Telegram.AdminID == 0 {
+		return errors.New("TELEGRAM_ADMIN_ID is required when Telegram polling is enabled")
 	}
 
 	client := telegram.NewClient(telegram.ClientOptions{
@@ -172,8 +178,8 @@ func runTelegram(
 		SyncRunner:                syncService,
 		Repository:                repository,
 		Logger:                    logger,
-		AllowedUserID:             cfg.Telegram.AllowedUserID,
-		ReviewChatID:              cfg.Telegram.TargetChatID,
+		AdminID:                   cfg.Telegram.AdminID,
+		TargetChannelID:           cfg.Telegram.TargetChannelID,
 		ReviewSpoilerTranslations: cfg.Telegram.ReviewSpoilerTranslations,
 		ReviewSelection: review.SelectionOptions{
 			DocumentPushFactor: cfg.Review.DocumentPushFactor,
@@ -183,17 +189,17 @@ func runTelegram(
 		SyncEnabled:          cfg.SyncEnabled,
 		NotificationsEnabled: cfg.NotificationsEnabled,
 	})
-	bot := telegram.NewBot(client, handler, logger)
+	bot := telegram.NewBot(client, handler, telegramChatAllowlist(cfg), logger)
 
 	if err := client.SetMyCommands(ctx, telegram.BotCommands()); err != nil {
 		logger.Error("telegram command menu setup failed", slog.String("error", logging.SanitizeError(err)))
 	}
 
-	serviceNotifier := telegram.NewServiceNotifier(client, cfg.Telegram.AllowedUserID)
+	serviceNotifier := telegram.NewServiceNotifier(client, cfg.Telegram.AdminID)
 	if err := serviceNotifier.Notify(ctx, telegram.StartupMessage()); err != nil {
 		logger.Error(
 			"telegram startup notification failed",
-			slog.Int64("chat_id", cfg.Telegram.AllowedUserID),
+			slog.Int64("chat_id", cfg.Telegram.AdminID),
 			slog.String("error", logging.SanitizeError(err)),
 		)
 	}

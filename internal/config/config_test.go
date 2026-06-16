@@ -72,6 +72,33 @@ func TestLoadEnvValidation(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects invalid chat id list", func(t *testing.T) {
+		t.Setenv("TELEGRAM_ALLOWED_CHAT_IDS", "42,oops")
+
+		_, err := config.Load()
+		if err == nil {
+			t.Fatal("Load() error = nil, want invalid chat id list")
+		}
+		if !strings.Contains(err.Error(), "TELEGRAM_ALLOWED_CHAT_IDS") {
+			t.Fatalf("error = %v, want TELEGRAM_ALLOWED_CHAT_IDS", err)
+		}
+	})
+
+	t.Run("parses comma-separated chat ids", func(t *testing.T) {
+		t.Setenv("TELEGRAM_ALLOWED_CHAT_IDS", "42, -100123")
+
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if len(cfg.Telegram.AllowedChatIDs) != 2 {
+			t.Fatalf("AllowedChatIDs = %#v, want 2 ids", cfg.Telegram.AllowedChatIDs)
+		}
+		if cfg.Telegram.AllowedChatIDs[0] != 42 || cfg.Telegram.AllowedChatIDs[1] != -100123 {
+			t.Fatalf("AllowedChatIDs = %#v", cfg.Telegram.AllowedChatIDs)
+		}
+	})
+
 	t.Run("uses defaults when typed env unset", func(t *testing.T) {
 		t.Setenv("SYNC_ENABLED", "")
 		t.Setenv("POCKETBOOK_BOOK_CACHE_MAX", "")
@@ -138,7 +165,7 @@ func TestLoadEnvValidation(t *testing.T) {
 					"SYNC_ENABLED":                `'false'`,
 					"POCKETBOOK_BOOK_CACHE_MAX":   `'5'`,
 					"REVIEW_DOCUMENT_PUSH_FACTOR": `'0.8'`,
-					"TELEGRAM_ALLOWED_USER_ID":    `'42'`,
+					"TELEGRAM_ADMIN_ID":           `'42'`,
 					"AUTO_SYNC_CRON":              `'0 9 * * *'`,
 					"GOOGLE_SHEET_RANGE":          `'` + sheetRange + `'`,
 				},
@@ -162,8 +189,8 @@ func TestLoadEnvValidation(t *testing.T) {
 					if cfg.Review.DocumentPushFactor != 0.8 {
 						t.Fatalf("DocumentPushFactor = %v, want 0.8", cfg.Review.DocumentPushFactor)
 					}
-					if cfg.Telegram.AllowedUserID != 42 {
-						t.Fatalf("AllowedUserID = %d, want 42", cfg.Telegram.AllowedUserID)
+					if cfg.Telegram.AdminID != 42 {
+						t.Fatalf("AdminID = %d, want 42", cfg.Telegram.AdminID)
 					}
 					if cfg.Schedule.AutoSyncCron != "0 9 * * *" {
 						t.Fatalf("AutoSyncCron = %q", cfg.Schedule.AutoSyncCron)

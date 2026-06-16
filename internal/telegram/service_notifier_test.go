@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestServiceNotifierUsesAllowedUserID(t *testing.T) {
+func TestServiceNotifierUsesAdminID(t *testing.T) {
 	t.Parallel()
 
 	notifier := &fakeNotifier{}

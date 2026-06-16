@@ -12,9 +12,9 @@ func TestCommandHandlerShowsTypingWhileExecuting(t *testing.T) {
 
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		AllowedUserID: 42,
-		SyncEnabled:   true,
+		Notifier:    notifier,
+		AdminID:     42,
+		SyncEnabled: true,
 	})
 
 	if err := handler.HandleMessage(context.Background(), Message{
@@ -41,15 +41,15 @@ func TestCommandHandlerUsesUploadActionForDocumentCommands(t *testing.T) {
 
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		Repository:    memory.NewVocabularyRepository(),
-		AllowedUserID: 42,
-		LogPath:       t.TempDir() + "/missing.log",
+		Notifier:   notifier,
+		Repository: memory.NewVocabularyRepository(),
+		AdminID:    42,
+		LogPath:    t.TempDir() + "/missing.log",
 	})
 
 	if err := handler.HandleMessage(context.Background(), Message{
 		From: User{ID: 42},
-		Chat: Chat{ID: 200},
+		Chat: Chat{ID: 42, Type: "private"},
 		Text: CommandLogs,
 	}); err != nil {
 		t.Fatalf("HandleMessage() error = %v", err)

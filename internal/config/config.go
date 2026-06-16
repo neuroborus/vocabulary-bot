@@ -40,8 +40,9 @@ type MongoDBConfig struct {
 
 type TelegramConfig struct {
 	BotToken                  string
-	AllowedUserID             int64
-	TargetChatID              int64
+	AdminID                   int64
+	AllowedChatIDs            []int64
+	TargetChannelID           int64
 	APIBaseURL                string
 	PollingEnabled            bool
 	ReviewSpoilerTranslations bool
@@ -69,12 +70,17 @@ type GoogleSheetConfig struct {
 }
 
 func Load() (Config, error) {
-	allowedUserID, err := optionalInt64("TELEGRAM_ALLOWED_USER_ID")
+	adminID, err := optionalInt64("TELEGRAM_ADMIN_ID")
 	if err != nil {
 		return Config{}, err
 	}
 
-	targetChatID, err := optionalInt64("TELEGRAM_TARGET_CHAT_ID")
+	targetChannelID, err := optionalInt64("TELEGRAM_TARGET_CHANNEL_ID")
+	if err != nil {
+		return Config{}, err
+	}
+
+	allowedChatIDs, err := parseCommaSeparatedInt64s("TELEGRAM_ALLOWED_CHAT_IDS")
 	if err != nil {
 		return Config{}, err
 	}
@@ -140,8 +146,9 @@ func Load() (Config, error) {
 		},
 		Telegram: TelegramConfig{
 			BotToken:                  getenv("TELEGRAM_BOT_TOKEN", ""),
-			AllowedUserID:             allowedUserID,
-			TargetChatID:              targetChatID,
+			AdminID:                   adminID,
+			AllowedChatIDs:            allowedChatIDs,
+			TargetChannelID:           targetChannelID,
 			APIBaseURL:                getenv("TELEGRAM_API_BASE_URL", ""),
 			PollingEnabled:            pollingEnabled,
 			ReviewSpoilerTranslations: reviewSpoilerTranslations,
@@ -280,6 +287,31 @@ func getenvFloat(key string, fallback float64) (float64, error) {
 	}
 
 	return parsed, nil
+}
+
+func parseCommaSeparatedInt64s(key string) ([]int64, error) {
+	value := envValue(key)
+	if value == "" {
+		return nil, nil
+	}
+
+	parts := strings.Split(value, ",")
+	ids := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		parsed, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: invalid value %q: %w", key, part, err)
+		}
+
+		ids = append(ids, parsed)
+	}
+
+	return ids, nil
 }
 
 func optionalInt64(key string) (int64, error) {

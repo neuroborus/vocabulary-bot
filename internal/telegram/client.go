@@ -55,7 +55,7 @@ func (c *Client) GetUpdates(ctx context.Context, offset int, timeoutSeconds int)
 	if timeoutSeconds > 0 {
 		values.Set("timeout", strconv.Itoa(timeoutSeconds))
 	}
-	values.Set("allowed_updates", `["message","callback_query"]`)
+	values.Set("allowed_updates", `["message","callback_query","my_chat_member"]`)
 
 	endpoint := c.methodURL("getUpdates")
 	if encoded := values.Encode(); encoded != "" {
@@ -251,6 +251,27 @@ func (c *Client) SendDocument(ctx context.Context, chatID int64, path string, ca
 	}
 	if !response.OK {
 		return fmt.Errorf("telegram sendDocument failed: %s", response.Description)
+	}
+
+	return nil
+}
+
+func (c *Client) LeaveChat(ctx context.Context, chatID int64) error {
+	values := url.Values{}
+	values.Set("chat_id", strconv.FormatInt(chatID, 10))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("leaveChat"), strings.NewReader(values.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	var response apiResponse[bool]
+	if err := c.doJSON(req, &response); err != nil {
+		return err
+	}
+	if !response.OK {
+		return fmt.Errorf("telegram leaveChat failed: %s", response.Description)
 	}
 
 	return nil

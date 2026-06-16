@@ -25,8 +25,8 @@ type CommandHandler struct {
 	syncRunner                SyncRunner
 	repository                vocabulary.Repository
 	logger                    *slog.Logger
-	allowedUserID             int64
-	reviewChatID              int64
+	adminID                   int64
+	targetChannelID           int64
 	reviewSpoilerTranslations bool
 	logPath                   string
 	stateMu                   sync.RWMutex
@@ -42,8 +42,8 @@ type CommandHandlerOptions struct {
 	SyncRunner                SyncRunner
 	Repository                vocabulary.Repository
 	Logger                    *slog.Logger
-	AllowedUserID             int64
-	ReviewChatID              int64
+	AdminID                   int64
+	TargetChannelID           int64
 	ReviewSpoilerTranslations bool
 	LogPath                   string
 	SyncEnabled               bool
@@ -65,8 +65,8 @@ func NewCommandHandler(options CommandHandlerOptions) *CommandHandler {
 		syncRunner:                options.SyncRunner,
 		repository:                options.Repository,
 		logger:                    options.Logger,
-		allowedUserID:             options.AllowedUserID,
-		reviewChatID:              options.ReviewChatID,
+		adminID:                   options.AdminID,
+		targetChannelID:           options.TargetChannelID,
 		reviewSpoilerTranslations: options.ReviewSpoilerTranslations,
 		logPath:                   options.LogPath,
 		syncEnabled:               options.SyncEnabled,
@@ -80,7 +80,7 @@ func (h *CommandHandler) HandleMessage(ctx context.Context, message Message) err
 	if strings.TrimSpace(message.Text) == "" {
 		return nil
 	}
-	if h.allowedUserID != 0 && message.From.ID != h.allowedUserID {
+	if h.adminID != 0 && message.From.ID != h.adminID {
 		h.logger.Warn(
 			"telegram message rejected",
 			slog.Int64("from_user_id", message.From.ID),
@@ -95,9 +95,39 @@ func (h *CommandHandler) HandleMessage(ctx context.Context, message Message) err
 	}
 
 	chatID := message.Chat.ID
+	if commandRequiresAdminPrivateChat(command) && !h.isAdminPrivateChat(message.Chat) {
+		h.logger.Warn(
+			"telegram command rejected outside admin private chat",
+			slog.String("command", command),
+			slog.Int64("chat_id", chatID),
+			slog.String("chat_type", message.Chat.Type),
+		)
+		return h.sendHTMLMessage(
+			ctx,
+			chatID,
+			formatNotice(
+				"Admin private chat only",
+				"<code>"+escapeHTML(command)+"</code> is available only in a private chat with the bot.",
+			),
+		)
+	}
+
 	return runWithChatAction(ctx, h.notifier, chatID, commandChatAction(command), func(ctx context.Context) error {
-		return h.dispatchCommand(ctx, chatID, command)
+		return h.dispatchCommand(ctx, chatID, message.From.ID, command)
 	})
+}
+
+func commandRequiresAdminPrivateChat(command string) bool {
+	switch command {
+	case CommandSync, CommandLogs:
+		return true
+	default:
+		return false
+	}
+}
+
+func (h *CommandHandler) isAdminPrivateChat(chat Chat) bool {
+	return h.adminID != 0 && chat.ID == h.adminID && chat.Type == "private"
 }
 
 func commandChatAction(command string) string {
@@ -109,14 +139,14 @@ func commandChatAction(command string) string {
 	}
 }
 
-func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID int64, command string) error {
+func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID int64, command string) error {
 	switch command {
 	case CommandStart:
 		return h.sendHTMLMessage(ctx, chatID, formatStartMessage())
 	case CommandInfo:
-		return h.sendHTMLMessage(ctx, chatID, formatInfoMessage(h.healthText(ctx)))
+		return h.sendHTMLMessage(ctx, chatID, formatInfoMessage(h.healthText(ctx, 0, 0)))
 	case CommandHealth:
-		return h.sendHTMLMessage(ctx, chatID, h.healthText(ctx))
+		return h.sendHTMLMessage(ctx, chatID, h.healthText(ctx, chatID, callerID))
 	case CommandSync:
 		return h.handleSync(ctx, chatID)
 	case CommandListWords:
@@ -137,7 +167,7 @@ func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID int64, comm
 }
 
 func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query CallbackQuery) error {
-	if h.allowedUserID != 0 && query.From.ID != h.allowedUserID {
+	if h.adminID != 0 && query.From.ID != h.adminID {
 		h.logger.Warn(
 			"telegram callback rejected",
 			slog.Int64("from_user_id", query.From.ID),
@@ -241,7 +271,7 @@ func (h *CommandHandler) RunAutoPush(ctx context.Context) error {
 		return nil
 	}
 
-	item, _, err := h.pushReviewWord(ctx, h.allowedUserID)
+	item, _, err := h.pushReviewWord(ctx, h.adminID)
 	if err != nil {
 		return err
 	}
@@ -290,15 +320,15 @@ func (h *CommandHandler) pushReviewWord(ctx context.Context, commandChatID int64
 		slog.String("normalized_key", item.NormalizedKey),
 		slog.String("display_word", item.DisplayWord),
 		slog.Int64("delivery_chat_id", deliveryChatID),
-		slog.Bool("scheduled", commandChatID == h.allowedUserID),
+		slog.Bool("scheduled", commandChatID == h.adminID),
 	)
 
 	return &item, deliveryChatID, nil
 }
 
 func (h *CommandHandler) reviewDeliveryChatID(commandChatID int64) int64 {
-	if h.reviewChatID != 0 {
-		return h.reviewChatID
+	if h.targetChannelID != 0 {
+		return h.targetChannelID
 	}
 
 	return commandChatID
@@ -327,7 +357,7 @@ func (h *CommandHandler) findItemByReviewToken(ctx context.Context, token string
 	return match, found, nil
 }
 
-func (h *CommandHandler) healthText(ctx context.Context) string {
+func (h *CommandHandler) healthText(ctx context.Context, chatID, callerID int64) string {
 	wordCount := 0
 	status := "ok"
 
@@ -341,7 +371,7 @@ func (h *CommandHandler) healthText(ctx context.Context) string {
 		}
 	}
 
-	return formatHealthMessage(status, wordCount, h.syncEnabledState(), h.notificationsEnabledState())
+	return formatHealthMessage(status, wordCount, h.syncEnabledState(), h.notificationsEnabledState(), chatID, callerID)
 }
 
 func (h *CommandHandler) handleSync(ctx context.Context, chatID int64) error {
@@ -481,8 +511,8 @@ func (h *CommandHandler) RunAutoLogs(ctx context.Context) error {
 	if h.logPath == "" {
 		return fmt.Errorf("log file path is not configured")
 	}
-	if h.allowedUserID == 0 {
-		return fmt.Errorf("telegram allowed user is not configured")
+	if h.adminID == 0 {
+		return fmt.Errorf("telegram admin is not configured")
 	}
 
 	info, err := os.Stat(h.logPath)
@@ -498,7 +528,7 @@ func (h *CommandHandler) RunAutoLogs(ctx context.Context) error {
 		return nil
 	}
 
-	if err := h.notifier.SendDocument(ctx, h.allowedUserID, h.logPath, "📋 Weekly log export"); err != nil {
+	if err := h.notifier.SendDocument(ctx, h.adminID, h.logPath, "📋 Weekly log export"); err != nil {
 		h.logger.Error(
 			"scheduled log delivery failed",
 			slog.String("error", logging.SanitizeError(err)),
@@ -514,7 +544,7 @@ func (h *CommandHandler) RunAutoLogs(ctx context.Context) error {
 	h.logger.Info(
 		"scheduled log delivery completed",
 		slog.String("log_path", h.logPath),
-		slog.Int64("delivery_chat_id", h.allowedUserID),
+		slog.Int64("delivery_chat_id", h.adminID),
 	)
 
 	return nil

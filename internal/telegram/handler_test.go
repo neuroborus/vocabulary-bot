@@ -23,9 +23,9 @@ func TestCommandHandlerRejectsUnauthorizedUser(t *testing.T) {
 
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		AllowedUserID: 42,
-		SyncEnabled:   true,
+		Notifier:    notifier,
+		AdminID:     42,
+		SyncEnabled: true,
 	})
 
 	err := handler.HandleMessage(context.Background(), Message{
@@ -60,7 +60,7 @@ func TestCommandHandlerHealthReportsWordCount(t *testing.T) {
 	handler := NewCommandHandler(CommandHandlerOptions{
 		Notifier:             notifier,
 		Repository:           repository,
-		AllowedUserID:        42,
+		AdminID:              42,
 		SyncEnabled:          true,
 		NotificationsEnabled: true,
 	})
@@ -79,6 +79,12 @@ func TestCommandHandlerHealthReportsWordCount(t *testing.T) {
 	if !strings.Contains(notifier.messages[0].text, "Words: <b>1</b>") {
 		t.Fatalf("health text = %q", notifier.messages[0].text)
 	}
+	if !strings.Contains(notifier.messages[0].text, "Chat ID: <code>200</code>") {
+		t.Fatalf("health text = %q, want current chat id", notifier.messages[0].text)
+	}
+	if !strings.Contains(notifier.messages[0].text, "Caller ID: <code>42</code>") {
+		t.Fatalf("health text = %q, want caller id", notifier.messages[0].text)
+	}
 	if notifier.messages[0].chatID != 200 {
 		t.Fatalf("chatID = %d, want 200", notifier.messages[0].chatID)
 	}
@@ -89,9 +95,9 @@ func TestCommandHandlerStartAndInfoUseCommandDescriptions(t *testing.T) {
 
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		AllowedUserID: 42,
-		SyncEnabled:   true,
+		Notifier:    notifier,
+		AdminID:     42,
+		SyncEnabled: true,
 	})
 
 	if err := handler.HandleMessage(context.Background(), Message{
@@ -137,15 +143,15 @@ func TestCommandHandlerSyncUsesRunner(t *testing.T) {
 		},
 	}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		SyncRunner:    runner,
-		AllowedUserID: 42,
-		SyncEnabled:   true,
+		Notifier:    notifier,
+		SyncRunner:  runner,
+		AdminID:     42,
+		SyncEnabled: true,
 	})
 
 	if err := handler.HandleMessage(context.Background(), Message{
 		From: User{ID: 42},
-		Chat: Chat{ID: 200},
+		Chat: Chat{ID: 42, Type: "private"},
 		Text: CommandSync,
 	}); err != nil {
 		t.Fatalf("HandleMessage() error = %v", err)
@@ -157,11 +163,68 @@ func TestCommandHandlerSyncUsesRunner(t *testing.T) {
 	if len(notifier.messages) != 1 {
 		t.Fatalf("messages = %d, want 1", len(notifier.messages))
 	}
-	if notifier.messages[0].chatID != 200 {
-		t.Fatalf("chatID = %d, want source chat 200", notifier.messages[0].chatID)
+	if notifier.messages[0].chatID != 42 {
+		t.Fatalf("chatID = %d, want admin private chat 42", notifier.messages[0].chatID)
 	}
 	if !strings.Contains(notifier.messages[0].text, "Drafts processed: <b>3</b>") {
 		t.Fatalf("sync text = %q", notifier.messages[0].text)
+	}
+}
+
+func TestCommandHandlerSyncRejectedOutsideAdminPrivateChat(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	runner := &fakeSyncRunner{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:    notifier,
+		SyncRunner:  runner,
+		AdminID:     42,
+		SyncEnabled: true,
+	})
+
+	err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: -100999, Type: "supergroup"},
+		Text: CommandSync,
+	})
+	if err != nil {
+		t.Fatalf("HandleMessage() error = %v", err)
+	}
+	if runner.calls != 0 {
+		t.Fatalf("sync calls = %d, want 0", runner.calls)
+	}
+	if len(notifier.messages) != 1 {
+		t.Fatalf("messages = %d, want 1 rejection notice", len(notifier.messages))
+	}
+	if !strings.Contains(notifier.messages[0].text, "Admin private chat only") {
+		t.Fatalf("message = %q", notifier.messages[0].text)
+	}
+}
+
+func TestCommandHandlerLogsRejectedOutsideAdminPrivateChat(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier: notifier,
+		AdminID:  42,
+		LogPath:  t.TempDir() + "/vocabulary.log",
+	})
+
+	err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 42, Type: "group"},
+		Text: CommandLogs,
+	})
+	if err != nil {
+		t.Fatalf("HandleMessage() error = %v", err)
+	}
+	if len(notifier.documents) != 0 {
+		t.Fatalf("documents = %d, want none", len(notifier.documents))
+	}
+	if len(notifier.messages) != 1 || !strings.Contains(notifier.messages[0].text, "Admin private chat only") {
+		t.Fatalf("messages = %#v, want rejection notice", notifier.messages)
 	}
 }
 
@@ -242,11 +305,11 @@ func TestCommandHandlerPushSendsReviewWordToReviewChat(t *testing.T) {
 
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		Repository:    repository,
-		AllowedUserID: 42,
-		ReviewChatID:  900,
-		Now:           func() time.Time { return now },
+		Notifier:        notifier,
+		Repository:      repository,
+		AdminID:         42,
+		TargetChannelID: 900,
+		Now:             func() time.Time { return now },
 	})
 
 	if err := handler.HandleMessage(ctx, Message{
@@ -296,10 +359,10 @@ func TestCommandHandlerPushDoesNotMarkPushedWhenDeliveryFails(t *testing.T) {
 
 	notifier := &fakeNotifier{keyboardMessageErr: fmt.Errorf("telegram unavailable")}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		Repository:    repository,
-		AllowedUserID: 42,
-		Now:           func() time.Time { return now },
+		Notifier:   notifier,
+		Repository: repository,
+		AdminID:    42,
+		Now:        func() time.Time { return now },
 	})
 
 	if err := handler.HandleMessage(ctx, Message{
@@ -347,10 +410,10 @@ func TestCommandHandlerPushSendsReviewWord(t *testing.T) {
 
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		Repository:    repository,
-		AllowedUserID: 42,
-		Now:           func() time.Time { return now },
+		Notifier:   notifier,
+		Repository: repository,
+		AdminID:    42,
+		Now:        func() time.Time { return now },
 	})
 
 	if err := handler.HandleMessage(ctx, Message{
@@ -391,10 +454,10 @@ func TestCommandHandlerReviewCallbackEasy(t *testing.T) {
 
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		Repository:    repository,
-		AllowedUserID: 42,
-		Now:           func() time.Time { return now },
+		Notifier:   notifier,
+		Repository: repository,
+		AdminID:    42,
+		Now:        func() time.Time { return now },
 	})
 
 	if err := handler.HandleCallbackQuery(ctx, CallbackQuery{
@@ -480,10 +543,10 @@ func TestCommandHandlerTurnOffBlocksSync(t *testing.T) {
 	notifier := &fakeNotifier{}
 	runner := &fakeSyncRunner{}
 	handler := NewCommandHandler(CommandHandlerOptions{
-		Notifier:      notifier,
-		SyncRunner:    runner,
-		AllowedUserID: 42,
-		SyncEnabled:   true,
+		Notifier:    notifier,
+		SyncRunner:  runner,
+		AdminID:     42,
+		SyncEnabled: true,
 	})
 
 	if err := handler.HandleMessage(context.Background(), Message{
@@ -495,7 +558,7 @@ func TestCommandHandlerTurnOffBlocksSync(t *testing.T) {
 	}
 	if err := handler.HandleMessage(context.Background(), Message{
 		From: User{ID: 42},
-		Chat: Chat{ID: 200},
+		Chat: Chat{ID: 42, Type: "private"},
 		Text: CommandSync,
 	}); err != nil {
 		t.Fatalf("sync: %v", err)
@@ -522,7 +585,7 @@ func TestRunAutoLogsSendsActiveLogAndTruncatesIt(t *testing.T) {
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
 		Notifier:             notifier,
-		AllowedUserID:        42,
+		AdminID:              42,
 		LogPath:              logPath,
 		NotificationsEnabled: true,
 	})
@@ -562,7 +625,7 @@ func TestRunAutoLogsKeepsActiveLogWhenDeliveryFails(t *testing.T) {
 	notifier := &fakeNotifier{documentErr: os.ErrPermission}
 	handler := NewCommandHandler(CommandHandlerOptions{
 		Notifier:             notifier,
-		AllowedUserID:        42,
+		AdminID:              42,
 		LogPath:              logPath,
 		NotificationsEnabled: true,
 	})
@@ -593,7 +656,7 @@ func TestRunAutoLogsSkipsWhenNotificationsDisabled(t *testing.T) {
 	notifier := &fakeNotifier{}
 	handler := NewCommandHandler(CommandHandlerOptions{
 		Notifier:             notifier,
-		AllowedUserID:        42,
+		AdminID:              42,
 		LogPath:              logPath,
 		NotificationsEnabled: false,
 	})
@@ -645,6 +708,7 @@ type fakeNotifier struct {
 	documents          []fakeDocument
 	callbackResponses  []fakeCallbackResponse
 	chatActions        []fakeChatAction
+	leftChats          []int64
 	documentErr        error
 	keyboardMessageErr error
 }
@@ -749,5 +813,14 @@ func (n *fakeNotifier) SendDocument(ctx context.Context, chatID int64, path stri
 	}
 
 	n.documents = append(n.documents, fakeDocument{chatID: chatID, path: path, caption: caption})
+	return nil
+}
+
+func (n *fakeNotifier) LeaveChat(ctx context.Context, chatID int64) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	n.leftChats = append(n.leftChats, chatID)
 	return nil
 }

@@ -33,6 +33,23 @@ func TestFormatCommandsBlockUsesHTML(t *testing.T) {
 	}
 }
 
+func TestFormatHealthMessageIncludesChatID(t *testing.T) {
+	t.Parallel()
+
+	text := formatHealthMessage("ok", 3, true, false, -1004299028040, 490734700)
+	if !strings.Contains(text, "Chat ID: <code>-1004299028040</code>") {
+		t.Fatalf("health message = %q, want chat id", text)
+	}
+	if !strings.Contains(text, "Caller ID: <code>490734700</code>") {
+		t.Fatalf("health message = %q, want caller id", text)
+	}
+
+	text = formatHealthMessage("ok", 3, true, false, 0, 0)
+	if strings.Contains(text, "Chat ID:") || strings.Contains(text, "Caller ID:") {
+		t.Fatalf("health message = %q, want no chat or caller id when unset", text)
+	}
+}
+
 func TestFormatSyncSummaryIncludesSections(t *testing.T) {
 	t.Parallel()
 
