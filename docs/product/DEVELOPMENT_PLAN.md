@@ -505,7 +505,7 @@ Duplicates should be checked after trimming and normalizing whitespace.
 
 The Telegram bot is the main user interface.
 
-The bot should only accept commands and button presses from the configured allowed Telegram user ID.
+The bot should only accept updates from allowlisted chat IDs. Admin commands and review button presses require the configured admin Telegram user ID. `/save` is intentionally less restrictive: any user in an allowlisted chat may append vocabulary to Google Sheets.
 
 Required secret/config value:
 
@@ -743,6 +743,13 @@ reply to a message with /save
 ```
 
 If `/save` is sent without text and without a text reply, the bot asks the user to reply to the message that should be saved or write text before/after the command.
+
+Access:
+
+```text
+allowed chat required
+admin user not required
+```
 
 ---
 

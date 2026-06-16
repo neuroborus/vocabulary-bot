@@ -304,6 +304,38 @@ func TestCommandHandlerSaveAcceptsTextBeforeCommand(t *testing.T) {
 	}
 }
 
+func TestCommandHandlerSaveAllowsNonAdminUser(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	saver := &fakeVocabularySaver{
+		result: save.Result{
+			Word:      "teasel",
+			RowNumber: 42,
+		},
+	}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:        notifier,
+		AdminID:         42,
+		VocabularySaver: saver,
+	})
+
+	err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 100},
+		Chat: Chat{ID: 200},
+		Text: CommandSave + " teasel",
+	})
+	if err != nil {
+		t.Fatalf("HandleMessage() error = %v", err)
+	}
+	if saver.input != "teasel" {
+		t.Fatalf("input = %q, want teasel", saver.input)
+	}
+	if len(notifier.messages) != 1 {
+		t.Fatalf("messages = %d, want save confirmation", len(notifier.messages))
+	}
+}
+
 func TestCommandHandlerSaveEmptyInputAsksForReplyOrText(t *testing.T) {
 	t.Parallel()
 
