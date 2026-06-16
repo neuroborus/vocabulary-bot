@@ -185,6 +185,13 @@ func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID i
 func (h *CommandHandler) handleSave(ctx context.Context, chatID int64, message Message) error {
 	input, err := extractSaveInput(message)
 	if err != nil {
+		h.logger.Warn(
+			"telegram save input missing",
+			slog.Int64("chat_id", chatID),
+			slog.String("chat_type", message.Chat.Type),
+			slog.Bool("has_reply_to_message", message.ReplyToMessage != nil),
+			slog.Bool("has_quote", message.Quote != nil),
+		)
 		return h.sendHTMLMessage(ctx, chatID, formatSaveInputRequired(message))
 	}
 

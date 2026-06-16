@@ -150,7 +150,7 @@ func formatSaveConfirmation(result save.Result) string {
 }
 
 func formatSaveInputRequired(message Message) string {
-	if saveReplyHadNoReadableText(message) {
+	if saveReplyHadNoReadableText(message) || isGroupLikeChat(message.Chat.Type) {
 		return formatNotice(
 			"Nothing to save",
 			"The bot could not read the replied message in this group. Send the text with <code>/save</code>, disable <b>Group Privacy</b> in @BotFather, or add the bot as a group admin.",
