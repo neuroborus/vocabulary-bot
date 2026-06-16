@@ -177,20 +177,13 @@ func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID i
 }
 
 func (h *CommandHandler) handleSave(ctx context.Context, chatID int64, message Message) error {
-	if h.vocabularySaver == nil {
-		return h.sendHTMLMessage(ctx, chatID, formatError("Save is not configured", "Set OPENAI_API_KEY and Google Sheets credentials."))
-	}
-
 	input, err := extractSaveInput(message)
 	if err != nil {
-		return h.sendHTMLMessage(
-			ctx,
-			chatID,
-			formatError(
-				"Save input is empty",
-				"Tag the bot with <code>/save</code> and text, or reply to a message with <code>/save</code>.",
-			),
-		)
+		return h.sendHTMLMessage(ctx, chatID, formatSaveInputRequired())
+	}
+
+	if h.vocabularySaver == nil {
+		return h.sendHTMLMessage(ctx, chatID, formatError("Save is not configured", "Set OPENAI_API_KEY and Google Sheets credentials."))
 	}
 
 	result, err := h.vocabularySaver.SaveFromInput(ctx, input)
@@ -598,14 +591,24 @@ func (h *CommandHandler) sendHTMLMessage(ctx context.Context, chatID int64, text
 
 func parseCommand(text string) string {
 	fields := strings.Fields(strings.TrimSpace(text))
-	if len(fields) == 0 || !strings.HasPrefix(fields[0], "/") {
+	if len(fields) == 0 {
 		return ""
 	}
 
-	command := fields[0]
-	if index := strings.Index(command, "@"); index >= 0 {
-		command = command[:index]
+	if strings.HasPrefix(fields[0], "/") {
+		command := fields[0]
+		if index := strings.Index(command, "@"); index >= 0 {
+			command = command[:index]
+		}
+
+		return command
 	}
 
-	return command
+	for _, field := range fields[1:] {
+		if commandTokenMatches(field, CommandSave) {
+			return CommandSave
+		}
+	}
+
+	return ""
 }

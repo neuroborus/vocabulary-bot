@@ -734,6 +734,16 @@ Behavior:
 5. Import the new row into local storage during the normal /sync flow.
 ```
 
+Accepted input forms:
+
+```text
+/save text to save
+text to save /save
+reply to a message with /save
+```
+
+If `/save` is sent without text and without a text reply, the bot asks the user to reply to the message that should be saved or write text before/after the command.
+
 ---
 
 ### `/logs`

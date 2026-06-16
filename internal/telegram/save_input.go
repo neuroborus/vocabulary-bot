@@ -15,7 +15,7 @@ func extractSaveInput(message Message) (string, error) {
 		}
 	}
 
-	remainder := strings.TrimSpace(stripLeadingCommand(message.Text, CommandSave))
+	remainder := strings.TrimSpace(stripCommandToken(message.Text, CommandSave))
 	if remainder == "" {
 		return "", errEmptySaveInput
 	}
@@ -23,21 +23,34 @@ func extractSaveInput(message Message) (string, error) {
 	return remainder, nil
 }
 
-func stripLeadingCommand(text, command string) string {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return ""
-	}
-
+func stripCommandToken(text, command string) string {
 	fields := strings.Fields(text)
 	if len(fields) == 0 {
 		return ""
 	}
 
-	first := fields[0]
-	if !strings.HasPrefix(first, command) {
-		return text
+	withoutCommand := make([]string, 0, len(fields))
+	removed := false
+	for _, field := range fields {
+		if !removed && commandTokenMatches(field, command) {
+			removed = true
+			continue
+		}
+		withoutCommand = append(withoutCommand, field)
 	}
 
-	return strings.TrimSpace(strings.TrimPrefix(text, first))
+	return strings.TrimSpace(strings.Join(withoutCommand, " "))
+}
+
+func commandTokenMatches(token, command string) bool {
+	token = strings.TrimSpace(token)
+	if token == "" || !strings.HasPrefix(token, "/") {
+		return false
+	}
+
+	if index := strings.Index(token, "@"); index >= 0 {
+		token = token[:index]
+	}
+
+	return token == command
 }

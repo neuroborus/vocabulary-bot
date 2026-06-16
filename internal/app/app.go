@@ -197,8 +197,16 @@ func runTelegram(
 	})
 	bot := telegram.NewBot(client, handler, telegramChatAllowlist(cfg), logger)
 
-	if err := client.SetMyCommands(ctx, telegram.BotCommands()); err != nil {
+	botCommands := telegram.BotCommands()
+	if err := client.SetMyCommands(ctx, botCommands); err != nil {
 		logger.Error("telegram command menu setup failed", slog.String("error", logging.SanitizeError(err)))
+	}
+	if err := client.SetMyCommandsForChat(ctx, cfg.Telegram.AdminID, botCommands); err != nil {
+		logger.Error(
+			"telegram admin command menu setup failed",
+			slog.Int64("chat_id", cfg.Telegram.AdminID),
+			slog.String("error", logging.SanitizeError(err)),
+		)
 	}
 
 	serviceNotifier := telegram.NewServiceNotifier(client, cfg.Telegram.AdminID)
