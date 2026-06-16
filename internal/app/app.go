@@ -174,6 +174,14 @@ func runTelegram(
 		return err
 	}
 
+	var vocabularySaver telegram.VocabularySaver
+	if saveService != nil {
+		vocabularySaver = saveService
+		logger.Info("telegram /save enabled")
+	} else {
+		logger.Info("telegram /save disabled", slog.String("reason", saveDisabledReason(cfg)))
+	}
+
 	client := telegram.NewClient(telegram.ClientOptions{
 		BotToken: cfg.Telegram.BotToken,
 		BaseURL:  cfg.Telegram.APIBaseURL,
@@ -193,7 +201,7 @@ func runTelegram(
 		LogPath:              cfg.LogPath,
 		SyncEnabled:          cfg.SyncEnabled,
 		NotificationsEnabled: cfg.NotificationsEnabled,
-		VocabularySaver:      saveService,
+		VocabularySaver:      vocabularySaver,
 	})
 	bot := telegram.NewBot(client, handler, telegramChatAllowlist(cfg), logger)
 
