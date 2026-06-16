@@ -42,3 +42,16 @@ func buildSaveService(ctx context.Context, cfg config.Config) (*save.Service, er
 		),
 	}), nil
 }
+
+func saveDisabledReason(cfg config.Config) string {
+	switch {
+	case cfg.OpenAI.APIKey == "":
+		return "OPENAI_API_KEY is not set"
+	case cfg.GoogleSheet.SpreadsheetID == "":
+		return "GOOGLE_SPREADSHEET_ID is not set"
+	case cfg.GoogleSheet.ServiceAccountJSON == "":
+		return "GOOGLE_SERVICE_ACCOUNT_JSON is not set"
+	default:
+		return "save service prerequisites are not configured"
+	}
+}

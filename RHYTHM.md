@@ -4,6 +4,8 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-16
 
+- `/save` confirmation now explains that local import happens on the scheduled sync and that only an admin can run `/sync` in private chat for an immediate import.
+- Startup now logs whether Telegram `/save` is enabled and why it is disabled when OpenAI or Google Sheets prerequisites are missing; the handler no longer receives a typed-nil save service interface.
 - `/save` is no longer admin-user-only: any user in an allowlisted chat may append to Google Sheets, while other commands and review callbacks remain admin-only. Telegram command menus are refreshed for all configured allowlisted chats.
 - Telegram command menu setup now sends `/save` in both the default command list and every configured allowlisted chat scope, so stale scoped menus are refreshed.
 - `/save` accepts text before or after the command token; an empty non-reply `/save` returns a usage prompt asking the user to reply to the message to save or include text around the command.

@@ -144,7 +144,7 @@ func formatSaveConfirmation(result save.Result) string {
 		builder.WriteString(escapeHTML(result.Translation))
 	}
 
-	builder.WriteString("\n\nRun <code>/sync</code> to import it into local storage.")
+	builder.WriteString("\n\nIt will be imported into local storage on the next scheduled sync. An admin can run <code>/sync</code> in private chat to import it immediately.")
 
 	return builder.String()
 }
