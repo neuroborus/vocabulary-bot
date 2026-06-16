@@ -149,7 +149,14 @@ func formatSaveConfirmation(result save.Result) string {
 	return builder.String()
 }
 
-func formatSaveInputRequired() string {
+func formatSaveInputRequired(message Message) string {
+	if saveReplyHadNoReadableText(message) {
+		return formatNotice(
+			"Nothing to save",
+			"The bot could not read the replied message in this group. Send the text with <code>/save</code>, disable <b>Group Privacy</b> in @BotFather, or add the bot as a group admin.",
+		)
+	}
+
 	return formatNotice(
 		"Nothing to save",
 		"Reply to the message you want to save with <code>/save</code>, or write the text before or after <code>/save</code>.",

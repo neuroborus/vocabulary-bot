@@ -185,7 +185,7 @@ func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID i
 func (h *CommandHandler) handleSave(ctx context.Context, chatID int64, message Message) error {
 	input, err := extractSaveInput(message)
 	if err != nil {
-		return h.sendHTMLMessage(ctx, chatID, formatSaveInputRequired())
+		return h.sendHTMLMessage(ctx, chatID, formatSaveInputRequired(message))
 	}
 
 	if h.vocabularySaver == nil {
