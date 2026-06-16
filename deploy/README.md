@@ -36,6 +36,7 @@ Add the deploy public key to `~/.ssh/authorized_keys` for the deploy user.
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token |
 | `POCKETBOOK_PASSWORD` | PocketBook account password |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google service account JSON (raw or base64) |
+| `OPENAI_API_KEY` | OpenAI API key for Telegram `/save` |
 
 ### Repository variables
 
@@ -71,6 +72,9 @@ Add the deploy public key to `~/.ssh/authorized_keys` for the deploy user.
 | `GOOGLE_SPREADSHEET_ID` | spreadsheet id from URL | Sheet document id |
 | `GOOGLE_SHEET_NAME` | `Vocabulary` | Sheet tab name |
 | `GOOGLE_SHEET_RANGE` | `Vocabulary!A:F` | Range to read (`word`…`enabled`) |
+| `OPENAI_MODEL` | empty | OpenAI model override; default `gpt-4o-mini` |
+| `OPENAI_TRANSLATION_LANGUAGE` | `Russian` | Target language for `/save` translations |
+| `OPENAI_API_BASE_URL` | empty | Optional OpenAI API override |
 | `REVIEW_DOCUMENT_PUSH_FACTOR` | `0.8` | Spreadsheet/PDF push weight |
 | `REVIEW_BOOK_PUSH_FACTOR` | `1` | Book-anchor push weight |
 

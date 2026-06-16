@@ -19,6 +19,7 @@ type Config struct {
 	Schedule             ScheduleConfig
 	PocketBook           PocketBookConfig
 	GoogleSheet          GoogleSheetConfig
+	OpenAI               OpenAIConfig
 }
 
 type ReviewConfig struct {
@@ -67,6 +68,13 @@ type GoogleSheetConfig struct {
 	SpreadsheetID      string
 	SheetName          string
 	Range              string
+}
+
+type OpenAIConfig struct {
+	APIKey              string
+	Model               string
+	BaseURL             string
+	TranslationLanguage string
 }
 
 func Load() (Config, error) {
@@ -181,6 +189,12 @@ func Load() (Config, error) {
 			SpreadsheetID:      firstEnv([]string{"GOOGLE_SPREADSHEET_ID", "GOOGLE_SHEET_ID"}, ""),
 			SheetName:          getenv("GOOGLE_SHEET_NAME", "Vocabulary"),
 			Range:              getenv("GOOGLE_SHEET_RANGE", "Vocabulary!A:F"),
+		},
+		OpenAI: OpenAIConfig{
+			APIKey:              getenv("OPENAI_API_KEY", ""),
+			Model:               getenv("OPENAI_MODEL", ""),
+			BaseURL:             getenv("OPENAI_API_BASE_URL", ""),
+			TranslationLanguage: getenv("OPENAI_TRANSLATION_LANGUAGE", "Russian"),
 		},
 	}
 
