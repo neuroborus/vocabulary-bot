@@ -4,6 +4,8 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-16
 
+- Telegram command menu setup now sends `/save` in both the default command list and the admin chat scope, so stale scoped menus are refreshed for the private admin chat.
+- `/save` accepts text before or after the command token; an empty non-reply `/save` returns a usage prompt asking the user to reply to the message to save or include text around the command.
 - `/save` now appends one OpenAI-structured row to Google Sheets only; it does not merge into local storage or reply with a review card. The new row reaches MongoDB through the normal `/sync` flow.
 
 ## 2026-06-15

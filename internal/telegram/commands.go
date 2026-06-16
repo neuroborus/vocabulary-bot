@@ -36,6 +36,11 @@ type BotCommand struct {
 	Description string `json:"description"`
 }
 
+type BotCommandScope struct {
+	Type   string `json:"type"`
+	ChatID int64  `json:"chat_id,omitempty"`
+}
+
 func KnownCommands() []CommandDescription {
 	return []CommandDescription{
 		{

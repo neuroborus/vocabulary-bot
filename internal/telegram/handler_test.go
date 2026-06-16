@@ -275,6 +275,64 @@ func TestCommandHandlerSaveRepliesWithSheetConfirmation(t *testing.T) {
 	}
 }
 
+func TestCommandHandlerSaveAcceptsTextBeforeCommand(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	saver := &fakeVocabularySaver{
+		result: save.Result{
+			Word:      "teasel",
+			RowNumber: 42,
+		},
+	}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:        notifier,
+		AdminID:         42,
+		VocabularySaver: saver,
+	})
+
+	err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: "teasel " + CommandSave,
+	})
+	if err != nil {
+		t.Fatalf("HandleMessage() error = %v", err)
+	}
+	if saver.input != "teasel" {
+		t.Fatalf("input = %q, want teasel", saver.input)
+	}
+}
+
+func TestCommandHandlerSaveEmptyInputAsksForReplyOrText(t *testing.T) {
+	t.Parallel()
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:        notifier,
+		AdminID:         42,
+		VocabularySaver: &fakeVocabularySaver{},
+	})
+
+	err := handler.HandleMessage(context.Background(), Message{
+		From: User{ID: 42},
+		Chat: Chat{ID: 200},
+		Text: CommandSave,
+	})
+	if err != nil {
+		t.Fatalf("HandleMessage() error = %v", err)
+	}
+	if len(notifier.messages) != 1 {
+		t.Fatalf("messages = %d, want 1", len(notifier.messages))
+	}
+	if !strings.Contains(notifier.messages[0].text, "Reply to the message you want to save") {
+		t.Fatalf("message = %q, want reply instruction", notifier.messages[0].text)
+	}
+	if !strings.Contains(notifier.messages[0].text, "before or after") {
+		t.Fatalf("message = %q, want before/after instruction", notifier.messages[0].text)
+	}
+}
+
 func TestBotCommandsAreTelegramMenuCompatible(t *testing.T) {
 	t.Parallel()
 
@@ -283,6 +341,7 @@ func TestBotCommandsAreTelegramMenuCompatible(t *testing.T) {
 		t.Fatalf("BotCommands length = %d, want %d", len(commands), len(KnownCommands()))
 	}
 
+	hasSave := false
 	for _, command := range commands {
 		if strings.HasPrefix(command.Command, "/") {
 			t.Fatalf("bot command %q must not include slash", command.Command)
@@ -293,6 +352,12 @@ func TestBotCommandsAreTelegramMenuCompatible(t *testing.T) {
 		if command.Description == "" {
 			t.Fatalf("bot command %q has empty description", command.Command)
 		}
+		if command.Command == "save" {
+			hasSave = true
+		}
+	}
+	if !hasSave {
+		t.Fatal("BotCommands() does not include save")
 	}
 }
 
@@ -319,6 +384,9 @@ func TestClientSetMyCommands(t *testing.T) {
 		if payload.Commands[0].Description == "" {
 			t.Fatalf("first command description is empty")
 		}
+		if !botCommandsContain(payload.Commands, "save") {
+			t.Fatalf("commands payload = %#v, want save", payload.Commands)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true,"result":true}`))
@@ -332,6 +400,54 @@ func TestClientSetMyCommands(t *testing.T) {
 	if err := client.SetMyCommands(context.Background(), BotCommands()); err != nil {
 		t.Fatalf("SetMyCommands() error = %v", err)
 	}
+}
+
+func TestClientSetMyCommandsForChat(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/botfake-token/setMyCommands" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+
+		var payload struct {
+			Commands []BotCommand     `json:"commands"`
+			Scope    *BotCommandScope `json:"scope"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if !botCommandsContain(payload.Commands, "save") {
+			t.Fatalf("commands payload = %#v, want save", payload.Commands)
+		}
+		if payload.Scope == nil {
+			t.Fatal("scope = nil, want chat scope")
+		}
+		if payload.Scope.Type != "chat" || payload.Scope.ChatID != 42 {
+			t.Fatalf("scope = %#v, want chat 42", payload.Scope)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"result":true}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	if err := client.SetMyCommandsForChat(context.Background(), 42, BotCommands()); err != nil {
+		t.Fatalf("SetMyCommandsForChat() error = %v", err)
+	}
+}
+
+func botCommandsContain(commands []BotCommand, commandName string) bool {
+	for _, command := range commands {
+		if command.Command == commandName {
+			return true
+		}
+	}
+	return false
 }
 
 func TestCommandHandlerPushSendsReviewWordToReviewChat(t *testing.T) {

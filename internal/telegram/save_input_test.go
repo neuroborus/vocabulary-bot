@@ -33,6 +33,34 @@ func TestExtractSaveInputFromSameMessage(t *testing.T) {
 	}
 }
 
+func TestExtractSaveInputBeforeCommand(t *testing.T) {
+	t.Parallel()
+
+	input, err := extractSaveInput(Message{
+		Text: "carve the stone /save@VocabularyBot",
+	})
+	if err != nil {
+		t.Fatalf("extractSaveInput() error = %v", err)
+	}
+	if input != "carve the stone" {
+		t.Fatalf("input = %q", input)
+	}
+}
+
+func TestExtractSaveInputAroundCommand(t *testing.T) {
+	t.Parallel()
+
+	input, err := extractSaveInput(Message{
+		Text: "carve /save the stone",
+	})
+	if err != nil {
+		t.Fatalf("extractSaveInput() error = %v", err)
+	}
+	if input != "carve the stone" {
+		t.Fatalf("input = %q", input)
+	}
+}
+
 func TestExtractSaveInputRequiresContent(t *testing.T) {
 	t.Parallel()
 

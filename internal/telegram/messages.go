@@ -149,6 +149,13 @@ func formatSaveConfirmation(result save.Result) string {
 	return builder.String()
 }
 
+func formatSaveInputRequired() string {
+	return formatNotice(
+		"Nothing to save",
+		"Reply to the message you want to save with <code>/save</code>, or write the text before or after <code>/save</code>.",
+	)
+}
+
 func formatNotice(title, body string) string {
 	if body == "" {
 		return "ℹ️ <b>" + escapeHTML(title) + "</b>"

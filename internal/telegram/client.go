@@ -278,10 +278,23 @@ func (c *Client) LeaveChat(ctx context.Context, chatID int64) error {
 }
 
 func (c *Client) SetMyCommands(ctx context.Context, commands []BotCommand) error {
+	return c.setMyCommands(ctx, commands, nil)
+}
+
+func (c *Client) SetMyCommandsForChat(ctx context.Context, chatID int64, commands []BotCommand) error {
+	return c.setMyCommands(ctx, commands, &BotCommandScope{
+		Type:   "chat",
+		ChatID: chatID,
+	})
+}
+
+func (c *Client) setMyCommands(ctx context.Context, commands []BotCommand, scope *BotCommandScope) error {
 	body, err := json.Marshal(struct {
-		Commands []BotCommand `json:"commands"`
+		Commands []BotCommand     `json:"commands"`
+		Scope    *BotCommandScope `json:"scope,omitempty"`
 	}{
 		Commands: commands,
+		Scope:    scope,
 	})
 	if err != nil {
 		return err
