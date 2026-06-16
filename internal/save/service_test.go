@@ -3,11 +3,8 @@ package save
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/neuroborus/vocabulary-bot/internal/openai"
-	"github.com/neuroborus/vocabulary-bot/internal/storage/memory"
-	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
 type fakeStructurer struct {
@@ -39,14 +36,10 @@ func (f *fakeSheetAppender) AppendVocabularyRow(ctx context.Context, word, trans
 	return f.rowNumber, nil
 }
 
-func TestSaveFromInputAppendsAndMerges(t *testing.T) {
+func TestSaveFromInputAppendsToSheetOnly(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	repository := memory.NewVocabularyRepository()
-	vocabularyService := vocabulary.NewService(repository, func() time.Time {
-		return time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
-	})
 
 	structurer := &fakeStructurer{
 		fields: openai.VocabularyFields{
@@ -59,22 +52,22 @@ func TestSaveFromInputAppendsAndMerges(t *testing.T) {
 	service := NewService(ServiceOptions{
 		Structurer: structurer,
 		Sheet:      sheet,
-		Vocabulary: vocabularyService,
-		Repository: repository,
-		SheetName:  "Vocabulary",
 	})
 
-	item, err := service.SaveFromInput(ctx, "teasel")
+	result, err := service.SaveFromInput(ctx, "teasel")
 	if err != nil {
 		t.Fatalf("SaveFromInput() error = %v", err)
 	}
-	if item.DisplayWord != "teasel" {
-		t.Fatalf("DisplayWord = %q", item.DisplayWord)
+	if result.Word != "teasel" {
+		t.Fatalf("Word = %q", result.Word)
+	}
+	if result.RowNumber != 42 {
+		t.Fatalf("RowNumber = %d, want 42", result.RowNumber)
 	}
 	if sheet.word != "teasel" || sheet.translation != "чесало" {
 		t.Fatalf("sheet row = %#v", sheet)
 	}
-	if len(item.Translations) != 1 || item.Translations[0] != "чесало" {
-		t.Fatalf("translations = %#v", item.Translations)
+	if result.Translation != "чесало" {
+		t.Fatalf("Translation = %q", result.Translation)
 	}
 }

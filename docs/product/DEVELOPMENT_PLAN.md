@@ -720,6 +720,22 @@ Behavior:
 
 ---
 
+### `/save`
+
+Appends vocabulary from a Telegram message or reply to Google Sheets via OpenAI.
+
+Behavior:
+
+```text
+1. Extract text from the command message or replied-to message.
+2. Structure it into word, translation, and context fields.
+3. Append one row to Google Sheets.
+4. Do not merge into MongoDB immediately.
+5. Import the new row into local storage during the normal /sync flow.
+```
+
+---
+
 ### `/logs`
 
 Sends the current log file to the user in Telegram.

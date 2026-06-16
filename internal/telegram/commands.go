@@ -76,7 +76,7 @@ func KnownCommands() []CommandDescription {
 		},
 		{
 			Command:     CommandSave,
-			Description: "Save vocabulary from this message or a reply via OpenAI",
+			Description: "Append vocabulary to Google Sheets via OpenAI",
 		},
 	}
 }
