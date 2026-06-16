@@ -604,6 +604,8 @@ word | translations | contexts
 
 Writing back to the sheet is optional for MVP.
 
+The Telegram `/save` command is an append-only input helper: it may add a new user-owned row to Google Sheets after structuring the message with OpenAI, but it must not merge that row into local storage directly. The normal `/sync` flow remains responsible for reading the row back from Google Sheets and merging it into MongoDB.
+
 If enabled, write only metadata columns:
 
 ```text

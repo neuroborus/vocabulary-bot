@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neuroborus/vocabulary-bot/internal/save"
 	"github.com/neuroborus/vocabulary-bot/internal/storage/memory"
 	syncer "github.com/neuroborus/vocabulary-bot/internal/sync"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
@@ -228,19 +229,16 @@ func TestCommandHandlerLogsRejectedOutsideAdminPrivateChat(t *testing.T) {
 	}
 }
 
-func TestCommandHandlerSaveRepliesWithPushFormat(t *testing.T) {
+func TestCommandHandlerSaveRepliesWithSheetConfirmation(t *testing.T) {
 	t.Parallel()
 
 	notifier := &fakeNotifier{}
 	saver := &fakeVocabularySaver{
-		item: vocabulary.Item{
-			NormalizedKey: "teasel",
-			DisplayWord:   "teasel",
-			Translations:  []string{"чесало"},
-			Contexts:      []string{"Pat Teasely walked in."},
-			Anchors: []vocabulary.SourceAnchor{
-				{Source: vocabulary.SourceGoogleSheet, SheetName: "Vocabulary"},
-			},
+		result: save.Result{
+			Word:        "teasel",
+			Translation: "чесало",
+			Context:     "Pat Teasely walked in.",
+			RowNumber:   42,
 		},
 	}
 	handler := NewCommandHandler(CommandHandlerOptions{
@@ -263,11 +261,17 @@ func TestCommandHandlerSaveRepliesWithPushFormat(t *testing.T) {
 	if len(notifier.messages) != 1 {
 		t.Fatalf("messages = %d, want 1", len(notifier.messages))
 	}
-	if !strings.Contains(notifier.messages[0].text, "<b>teasel</b>") {
+	if !strings.Contains(notifier.messages[0].text, "Saved to Google Sheets") {
+		t.Fatalf("message = %q, want sheet confirmation", notifier.messages[0].text)
+	}
+	if !strings.Contains(notifier.messages[0].text, "teasel") {
 		t.Fatalf("message = %q", notifier.messages[0].text)
 	}
 	if !strings.Contains(notifier.messages[0].text, "чесало") {
 		t.Fatalf("message = %q, want translation", notifier.messages[0].text)
+	}
+	if !strings.Contains(notifier.messages[0].text, "/sync") {
+		t.Fatalf("message = %q, want sync hint", notifier.messages[0].text)
 	}
 }
 
@@ -713,17 +717,17 @@ func TestRunAutoLogsSkipsWhenNotificationsDisabled(t *testing.T) {
 }
 
 type fakeVocabularySaver struct {
-	input string
-	item  vocabulary.Item
-	err   error
+	input  string
+	result save.Result
+	err    error
 }
 
-func (s *fakeVocabularySaver) SaveFromInput(ctx context.Context, input string) (vocabulary.Item, error) {
+func (s *fakeVocabularySaver) SaveFromInput(ctx context.Context, input string) (save.Result, error) {
 	s.input = input
 	if s.err != nil {
-		return vocabulary.Item{}, s.err
+		return save.Result{}, s.err
 	}
-	return s.item, nil
+	return s.result, nil
 }
 
 type fakeSyncRunner struct {

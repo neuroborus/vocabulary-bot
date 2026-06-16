@@ -12,6 +12,7 @@ import (
 
 	"github.com/neuroborus/vocabulary-bot/internal/logging"
 	"github.com/neuroborus/vocabulary-bot/internal/review"
+	"github.com/neuroborus/vocabulary-bot/internal/save"
 	syncer "github.com/neuroborus/vocabulary-bot/internal/sync"
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
@@ -21,7 +22,7 @@ type SyncRunner interface {
 }
 
 type VocabularySaver interface {
-	SaveFromInput(ctx context.Context, input string) (vocabulary.Item, error)
+	SaveFromInput(ctx context.Context, input string) (save.Result, error)
 }
 
 type CommandHandler struct {
@@ -192,19 +193,19 @@ func (h *CommandHandler) handleSave(ctx context.Context, chatID int64, message M
 		)
 	}
 
-	item, err := h.vocabularySaver.SaveFromInput(ctx, input)
+	result, err := h.vocabularySaver.SaveFromInput(ctx, input)
 	if err != nil {
 		return h.sendHTMLMessage(ctx, chatID, formatError("Save failed", logging.SanitizeError(err)))
 	}
 
 	h.logger.Info(
-		"vocabulary saved from telegram",
-		slog.String("normalized_key", item.NormalizedKey),
-		slog.String("display_word", item.DisplayWord),
+		"vocabulary appended to spreadsheet from telegram",
+		slog.String("word", result.Word),
+		slog.Int("row_number", result.RowNumber),
 		slog.Int64("chat_id", chatID),
 	)
 
-	return h.sendHTMLMessage(ctx, chatID, formatReviewReminder(item, h.reviewSpoilerTranslations))
+	return h.sendHTMLMessage(ctx, chatID, formatSaveConfirmation(result))
 }
 
 func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query CallbackQuery) error {

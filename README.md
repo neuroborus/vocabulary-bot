@@ -73,10 +73,12 @@ Commands:
 /turn_off   Disable automatic sync and notifications
 /turn_on    Enable automatic sync and notifications
 /push       Manually send one review word with Easy/Hard buttons
-/save       Save vocabulary from a message or reply via OpenAI into Google Sheets
+/save       Append vocabulary from a message or reply to Google Sheets via OpenAI
 ```
 
 Only `TELEGRAM_ADMIN_ID` may run commands. `/sync` and `/logs` work only in a private chat with the bot (`chat_id` equals `TELEGRAM_ADMIN_ID`). Other commands and review callbacks are accepted in allowlisted chats: `TELEGRAM_ADMIN_ID`, `TELEGRAM_TARGET_CHANNEL_ID`, plus any IDs in `TELEGRAM_ALLOWED_CHAT_IDS`. The bot leaves other groups and channels. Service notifications go to the admin. Review cards go to `TELEGRAM_TARGET_CHANNEL_ID` — for example, a public channel like [t.me/vocabulary_list](https://t.me/vocabulary_list).
+
+`/save` structures the message with OpenAI and appends one row to Google Sheets only. The new row is imported into local storage by the normal `/sync` path.
 
 Push cards show source at the bottom (`Title — Author` for books, sheet name or `Document` for spreadsheet/PDF words), hide translations behind a spoiler by default, and update in place after Easy/Hard is chosen.
 

@@ -8,15 +8,9 @@ import (
 	"github.com/neuroborus/vocabulary-bot/internal/openai"
 	"github.com/neuroborus/vocabulary-bot/internal/save"
 	"github.com/neuroborus/vocabulary-bot/internal/source/spreadsheet"
-	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
 
-func buildSaveService(
-	ctx context.Context,
-	cfg config.Config,
-	vocabularyService *vocabulary.Service,
-	repository vocabulary.Repository,
-) (*save.Service, error) {
+func buildSaveService(ctx context.Context, cfg config.Config) (*save.Service, error) {
 	if cfg.OpenAI.APIKey == "" {
 		return nil, nil
 	}
@@ -46,8 +40,5 @@ func buildSaveService(
 			cfg.GoogleSheet.SpreadsheetID,
 			cfg.GoogleSheet.SheetName,
 		),
-		Vocabulary: vocabularyService,
-		Repository: repository,
-		SheetName:  cfg.GoogleSheet.SheetName,
 	}), nil
 }

@@ -2,9 +2,13 @@
 
 Chronological log of meaningful repo decisions. **Newest sections first:** add each new `## YYYY-MM-DD` block right below this paragraph, not at the end of the file.
 
+## 2026-06-16
+
+- `/save` now appends one OpenAI-structured row to Google Sheets only; it does not merge into local storage or reply with a review card. The new row reaches MongoDB through the normal `/sync` flow.
+
 ## 2026-06-15
 
-- `/save` structures vocabulary with OpenAI, appends a row to Google Sheets, merges it into storage, and replies in push card format. Translation language is configured with `OPENAI_TRANSLATION_LANGUAGE` (default `Russian`).
+- Added `/save` with OpenAI structuring and Google Sheets append support. Translation language is configured with `OPENAI_TRANSLATION_LANGUAGE` (default `Russian`).
 - `/health` includes the current chat ID and caller user ID to simplify allowlist setup.
 - `/sync` and `/logs` are accepted only from the admin private chat (`TELEGRAM_ADMIN_ID` with `chat.type=private`). Scheduled sync/log delivery is unchanged.
 - Telegram env vars are now `TELEGRAM_ADMIN_ID` and `TELEGRAM_TARGET_CHANNEL_ID`. Admin and target channel chats are always allowlisted; `TELEGRAM_ALLOWED_CHAT_IDS` adds optional extra chats.
