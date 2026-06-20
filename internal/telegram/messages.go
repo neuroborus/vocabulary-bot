@@ -140,11 +140,10 @@ func formatSaveConfirmation(result save.Result) string {
 	builder.WriteString("\n\n<tg-spoiler>")
 	builder.WriteString("<b>Saved to Google Sheets</b>")
 	if result.RowNumber > 0 {
-		builder.WriteString("\nRow: <code>")
+		builder.WriteString("\nRow: ")
 		builder.WriteString(fmt.Sprintf("%d", result.RowNumber))
-		builder.WriteString("</code>")
 	}
-	builder.WriteString("\n\nIt will be imported into local storage on the next scheduled sync. An admin can run <code>/sync</code> in private chat to import it immediately.")
+	builder.WriteString("\n\nIt will be imported into local storage on the next scheduled sync. An admin can run /sync in private chat to import it immediately.")
 	builder.WriteString("</tg-spoiler>")
 
 	return builder.String()
