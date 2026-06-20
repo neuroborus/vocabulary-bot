@@ -28,7 +28,7 @@ func TestFormatSaveConfirmationHidesMetaInSpoiler(t *testing.T) {
 		"присутствие",
 		"<tg-spoiler>",
 		"<b>Saved to Google Sheets</b>",
-		"Row: <code>285</code>",
+		"Row: 285",
 		"/sync",
 		"</tg-spoiler>",
 	} {

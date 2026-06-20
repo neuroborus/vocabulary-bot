@@ -4,6 +4,7 @@ Chronological log of meaningful repo decisions. **Newest sections first:** add e
 
 ## 2026-06-20
 
+- `/save` confirmation spoiler omits `<code>` tags because Telegram leaves monospace text visible inside `<tg-spoiler>`.
 - `/save` confirmation now shows word, context, and translation first; sheet row status and the scheduled-sync hint are grouped in a Telegram spoiler at the bottom.
 
 ## 2026-06-16
