@@ -261,6 +261,9 @@ func TestCommandHandlerSaveRepliesWithSheetConfirmation(t *testing.T) {
 	if len(notifier.messages) != 1 {
 		t.Fatalf("messages = %d, want 1", len(notifier.messages))
 	}
+	if !strings.Contains(notifier.messages[0].text, "<tg-spoiler>") {
+		t.Fatalf("message = %q, want save meta spoiler", notifier.messages[0].text)
+	}
 	if !strings.Contains(notifier.messages[0].text, "Saved to Google Sheets") {
 		t.Fatalf("message = %q, want sheet confirmation", notifier.messages[0].text)
 	}

@@ -123,16 +123,9 @@ func formatCommandsBlock() string {
 
 func formatSaveConfirmation(result save.Result) string {
 	var builder strings.Builder
-	builder.WriteString("<b>Saved to Google Sheets</b>")
-
-	if result.RowNumber > 0 {
-		builder.WriteString("\nRow: <code>")
-		builder.WriteString(fmt.Sprintf("%d", result.RowNumber))
-		builder.WriteString("</code>")
-	}
 
 	if strings.TrimSpace(result.Word) != "" {
-		builder.WriteString("\n\n<b>Word</b>\n")
+		builder.WriteString("<b>Word</b>\n")
 		builder.WriteString(escapeHTML(result.Word))
 	}
 	if strings.TrimSpace(result.Context) != "" {
@@ -144,7 +137,15 @@ func formatSaveConfirmation(result save.Result) string {
 		builder.WriteString(escapeHTML(result.Translation))
 	}
 
+	builder.WriteString("\n\n<tg-spoiler>")
+	builder.WriteString("<b>Saved to Google Sheets</b>")
+	if result.RowNumber > 0 {
+		builder.WriteString("\nRow: <code>")
+		builder.WriteString(fmt.Sprintf("%d", result.RowNumber))
+		builder.WriteString("</code>")
+	}
 	builder.WriteString("\n\nIt will be imported into local storage on the next scheduled sync. An admin can run <code>/sync</code> in private chat to import it immediately.")
+	builder.WriteString("</tg-spoiler>")
 
 	return builder.String()
 }

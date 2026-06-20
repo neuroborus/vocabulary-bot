@@ -2,6 +2,10 @@
 
 Chronological log of meaningful repo decisions. **Newest sections first:** add each new `## YYYY-MM-DD` block right below this paragraph, not at the end of the file.
 
+## 2026-06-20
+
+- `/save` confirmation now shows word, context, and translation first; sheet row status and the scheduled-sync hint are grouped in a Telegram spoiler at the bottom.
+
 ## 2026-06-16
 
 - Empty `/save` in groups now always shows the privacy/admin workaround hint, and failed group saves log whether Telegram sent `reply_to_message` or `quote`.
