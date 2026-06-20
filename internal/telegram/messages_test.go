@@ -4,9 +4,49 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neuroborus/vocabulary-bot/internal/save"
 	"github.com/neuroborus/vocabulary-bot/internal/source"
 	syncer "github.com/neuroborus/vocabulary-bot/internal/sync"
 )
+
+func TestFormatSaveConfirmationHidesMetaInSpoiler(t *testing.T) {
+	t.Parallel()
+
+	text := formatSaveConfirmation(save.Result{
+		Word:        "presence",
+		Context:     "Her presence in the room made everyone feel more comfortable.",
+		Translation: "присутствие",
+		RowNumber:   285,
+	})
+
+	for _, want := range []string{
+		"<b>Word</b>",
+		"presence",
+		"<b>Context</b>",
+		"feel more comfortable.",
+		"<b>Translation</b>",
+		"присутствие",
+		"<tg-spoiler>",
+		"<b>Saved to Google Sheets</b>",
+		"Row: <code>285</code>",
+		"/sync",
+		"</tg-spoiler>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("save confirmation missing %q: %q", want, text)
+		}
+	}
+
+	if strings.Index(text, "<b>Word</b>") > strings.Index(text, "<tg-spoiler>") {
+		t.Fatalf("word should appear before spoiler: %q", text)
+	}
+	if strings.Index(text, "<b>Translation</b>") > strings.Index(text, "<tg-spoiler>") {
+		t.Fatalf("translation should appear before spoiler: %q", text)
+	}
+	if strings.Index(text, "Saved to Google Sheets") < strings.Index(text, "<tg-spoiler>") {
+		t.Fatalf("sheet status should be inside spoiler: %q", text)
+	}
+}
 
 func TestEscapeHTML(t *testing.T) {
 	t.Parallel()
