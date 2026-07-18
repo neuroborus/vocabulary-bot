@@ -9,7 +9,7 @@ import (
 	syncer "github.com/neuroborus/vocabulary-bot/internal/sync"
 )
 
-func TestFormatSaveConfirmationHidesMetaInSpoiler(t *testing.T) {
+func TestFormatSaveConfirmationHidesRowInSpoiler(t *testing.T) {
 	t.Parallel()
 
 	text := formatSaveConfirmation(save.Result{
@@ -26,14 +26,20 @@ func TestFormatSaveConfirmationHidesMetaInSpoiler(t *testing.T) {
 		"feel more comfortable.",
 		"<b>Translation</b>",
 		"присутствие",
-		"<tg-spoiler>",
-		"<b>Saved to Google Sheets</b>",
-		"Row: 285",
-		"/sync",
-		"</tg-spoiler>",
+		"<tg-spoiler>Row: 285</tg-spoiler>",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("save confirmation missing %q: %q", want, text)
+		}
+	}
+
+	for _, unwanted := range []string{
+		"Saved to Google Sheets",
+		"/sync",
+		"scheduled sync",
+	} {
+		if strings.Contains(text, unwanted) {
+			t.Fatalf("save confirmation should omit %q: %q", unwanted, text)
 		}
 	}
 
@@ -43,8 +49,32 @@ func TestFormatSaveConfirmationHidesMetaInSpoiler(t *testing.T) {
 	if strings.Index(text, "<b>Translation</b>") > strings.Index(text, "<tg-spoiler>") {
 		t.Fatalf("translation should appear before spoiler: %q", text)
 	}
-	if strings.Index(text, "Saved to Google Sheets") < strings.Index(text, "<tg-spoiler>") {
-		t.Fatalf("sheet status should be inside spoiler: %q", text)
+}
+
+func TestFormatInfoMessageIncludesSchedule(t *testing.T) {
+	t.Parallel()
+
+	text := formatInfoMessage("<b>Health</b>\nStatus: ✅ ok", ScheduleInfo{
+		Timezone: "Europe/Kyiv",
+		SyncCron: "0 9 * * *",
+		PushCron: "0 12-21/2 * * *",
+		LogsCron: "0 21 * * 5",
+	})
+
+	for _, want := range []string{
+		"<b>Health</b>",
+		"<b>Schedule</b>",
+		"Timezone: Europe/Kyiv",
+		"Auto sync: <code>0 9 * * *</code>",
+		"Auto push: <code>0 12-21/2 * * *</code>",
+		"Auto logs: <code>0 21 * * 5</code>",
+		"<code>/save</code> rows import on the next scheduled sync",
+		"<code>/sync</code> in private chat",
+		"<b>Commands</b>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("info message missing %q: %q", want, text)
+		}
 	}
 }
 

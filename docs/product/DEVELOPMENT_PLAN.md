@@ -617,7 +617,7 @@ Does not run sync or change runtime settings.
 
 ### `/info`
 
-Shows the current health snapshot plus the full command reference.
+Shows the current health snapshot, configured schedule, and the full command reference.
 
 Current response includes:
 
@@ -626,10 +626,12 @@ health status
 stored word count
 sync enabled/disabled
 notifications enabled/disabled
+schedule timezone and auto sync/push/logs cron
+note that /save rows import on the next scheduled sync
 full command list with one-line descriptions
 ```
 
-Useful when you want status and help in one message.
+Useful when you want status, schedule, and help in one message.
 
 ---
 

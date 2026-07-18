@@ -65,7 +65,7 @@ Commands:
 
 ```text
 /start      Welcome message and command reference
-/info       Health snapshot plus command reference
+/info       Health, schedule, and command reference
 /health     Health status, word count, and enabled flags
 /sync       Sync PocketBook and Google Sheets into storage now
 /list_words Send all vocabulary items as a JSON file

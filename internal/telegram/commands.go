@@ -49,7 +49,7 @@ func KnownCommands() []CommandDescription {
 		},
 		{
 			Command:     CommandInfo,
-			Description: "Health snapshot plus command reference",
+			Description: "Health, schedule, and command reference",
 		},
 		{
 			Command:     CommandHealth,
