@@ -99,6 +99,12 @@ func TestCommandHandlerStartAndInfoUseCommandDescriptions(t *testing.T) {
 		Notifier:    notifier,
 		AdminID:     42,
 		SyncEnabled: true,
+		Schedule: ScheduleInfo{
+			Timezone: "Europe/Kyiv",
+			SyncCron: "0 9 * * *",
+			PushCron: "0 12-21/2 * * *",
+			LogsCron: "0 21 * * 5",
+		},
 	})
 
 	if err := handler.HandleMessage(context.Background(), Message{
@@ -126,6 +132,13 @@ func TestCommandHandlerStartAndInfoUseCommandDescriptions(t *testing.T) {
 		if !strings.Contains(message.text, "<code>"+CommandListWords+"</code>") {
 			t.Fatalf("message does not include list_words command: %q", message.text)
 		}
+	}
+	info := notifier.messages[1].text
+	if !strings.Contains(info, "<b>Schedule</b>") {
+		t.Fatalf("info missing schedule: %q", info)
+	}
+	if !strings.Contains(info, "Auto sync: <code>0 9 * * *</code>") {
+		t.Fatalf("info missing sync cron: %q", info)
 	}
 }
 
@@ -229,7 +242,7 @@ func TestCommandHandlerLogsRejectedOutsideAdminPrivateChat(t *testing.T) {
 	}
 }
 
-func TestCommandHandlerSaveRepliesWithSheetConfirmation(t *testing.T) {
+func TestCommandHandlerSaveRepliesWithRowSpoiler(t *testing.T) {
 	t.Parallel()
 
 	notifier := &fakeNotifier{}
@@ -261,11 +274,11 @@ func TestCommandHandlerSaveRepliesWithSheetConfirmation(t *testing.T) {
 	if len(notifier.messages) != 1 {
 		t.Fatalf("messages = %d, want 1", len(notifier.messages))
 	}
-	if !strings.Contains(notifier.messages[0].text, "<tg-spoiler>") {
-		t.Fatalf("message = %q, want save meta spoiler", notifier.messages[0].text)
+	if !strings.Contains(notifier.messages[0].text, "<tg-spoiler>Row: 42</tg-spoiler>") {
+		t.Fatalf("message = %q, want row spoiler", notifier.messages[0].text)
 	}
-	if !strings.Contains(notifier.messages[0].text, "Saved to Google Sheets") {
-		t.Fatalf("message = %q, want sheet confirmation", notifier.messages[0].text)
+	if strings.Contains(notifier.messages[0].text, "Saved to Google Sheets") {
+		t.Fatalf("message = %q, want no sheet status", notifier.messages[0].text)
 	}
 	if !strings.Contains(notifier.messages[0].text, "teasel") {
 		t.Fatalf("message = %q", notifier.messages[0].text)
@@ -273,8 +286,8 @@ func TestCommandHandlerSaveRepliesWithSheetConfirmation(t *testing.T) {
 	if !strings.Contains(notifier.messages[0].text, "чесало") {
 		t.Fatalf("message = %q, want translation", notifier.messages[0].text)
 	}
-	if !strings.Contains(notifier.messages[0].text, "/sync") {
-		t.Fatalf("message = %q, want sync hint", notifier.messages[0].text)
+	if strings.Contains(notifier.messages[0].text, "/sync") {
+		t.Fatalf("message = %q, want no sync hint", notifier.messages[0].text)
 	}
 }
 

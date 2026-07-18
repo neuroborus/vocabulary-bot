@@ -2,6 +2,11 @@
 
 Chronological log of meaningful repo decisions. **Newest sections first:** add each new `## YYYY-MM-DD` block right below this paragraph, not at the end of the file.
 
+## 2026-07-18
+
+- `/save` confirmation keeps word/context/translation visible and blurs only `Row: N` in a spoiler; sheet status and sync-import guidance were removed from the reply.
+- `/info` now includes the configured schedule (timezone + auto sync/push/logs cron) and notes that `/save` rows import on the next scheduled sync (or immediately via admin `/sync` in private chat).
+
 ## 2026-06-20
 
 - `/save` confirmation spoiler omits `<code>` tags because Telegram leaves monospace text visible inside `<tg-spoiler>`.

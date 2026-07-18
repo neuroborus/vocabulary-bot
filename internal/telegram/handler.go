@@ -25,6 +25,13 @@ type VocabularySaver interface {
 	SaveFromInput(ctx context.Context, input string) (save.Result, error)
 }
 
+type ScheduleInfo struct {
+	Timezone string
+	SyncCron string
+	PushCron string
+	LogsCron string
+}
+
 type CommandHandler struct {
 	notifier                  Notifier
 	syncRunner                SyncRunner
@@ -34,6 +41,7 @@ type CommandHandler struct {
 	targetChannelID           int64
 	reviewSpoilerTranslations bool
 	logPath                   string
+	schedule                  ScheduleInfo
 	stateMu                   sync.RWMutex
 	syncMu                    sync.Mutex
 	syncEnabled               bool
@@ -52,6 +60,7 @@ type CommandHandlerOptions struct {
 	TargetChannelID           int64
 	ReviewSpoilerTranslations bool
 	LogPath                   string
+	Schedule                  ScheduleInfo
 	SyncEnabled               bool
 	NotificationsEnabled      bool
 	ReviewSelection           review.SelectionOptions
@@ -76,6 +85,7 @@ func NewCommandHandler(options CommandHandlerOptions) *CommandHandler {
 		targetChannelID:           options.TargetChannelID,
 		reviewSpoilerTranslations: options.ReviewSpoilerTranslations,
 		logPath:                   options.LogPath,
+		schedule:                  options.Schedule,
 		syncEnabled:               options.SyncEnabled,
 		notificationsEnabled:      options.NotificationsEnabled,
 		reviewSelection:           options.ReviewSelection,
@@ -158,7 +168,7 @@ func (h *CommandHandler) dispatchCommand(ctx context.Context, chatID, callerID i
 	case CommandStart:
 		return h.sendHTMLMessage(ctx, chatID, formatStartMessage())
 	case CommandInfo:
-		return h.sendHTMLMessage(ctx, chatID, formatInfoMessage(h.healthText(ctx, 0, 0)))
+		return h.sendHTMLMessage(ctx, chatID, formatInfoMessage(h.healthText(ctx, 0, 0), h.schedule))
 	case CommandHealth:
 		return h.sendHTMLMessage(ctx, chatID, h.healthText(ctx, chatID, callerID))
 	case CommandSync:

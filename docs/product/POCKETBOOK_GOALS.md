@@ -575,7 +575,7 @@ The bot must support these commands:
   Welcome message and command reference.
 
 /info
-  Health snapshot plus command reference.
+  Health, schedule, and command reference.
 
 /health
   Report health status, word count, and sync/notification flags.

@@ -22,8 +22,42 @@ func formatStartMessage() string {
 	return builder.String()
 }
 
-func formatInfoMessage(health string) string {
-	return health + "\n\n" + formatCommandsBlock()
+func formatInfoMessage(health string, schedule ScheduleInfo) string {
+	return health + "\n\n" + formatScheduleBlock(schedule) + "\n\n" + formatCommandsBlock()
+}
+
+func formatScheduleBlock(schedule ScheduleInfo) string {
+	var builder strings.Builder
+	builder.WriteString("<b>Schedule</b>")
+
+	timezone := strings.TrimSpace(schedule.Timezone)
+	if timezone == "" {
+		timezone = "local"
+	}
+	builder.WriteString("\nTimezone: ")
+	builder.WriteString(escapeHTML(timezone))
+
+	for _, item := range []struct {
+		label string
+		cron  string
+	}{
+		{"Auto sync", schedule.SyncCron},
+		{"Auto push", schedule.PushCron},
+		{"Auto logs", schedule.LogsCron},
+	} {
+		cron := strings.TrimSpace(item.cron)
+		if cron == "" {
+			continue
+		}
+		builder.WriteString("\n")
+		builder.WriteString(item.label)
+		builder.WriteString(": <code>")
+		builder.WriteString(escapeHTML(cron))
+		builder.WriteString("</code>")
+	}
+
+	builder.WriteString("\n\n<code>/save</code> rows import on the next scheduled sync. An admin can run <code>/sync</code> in private chat to import immediately.")
+	return builder.String()
 }
 
 func formatHealthMessage(status string, wordCount int, syncEnabled, notificationsEnabled bool, chatID, callerID int64) string {
@@ -137,14 +171,11 @@ func formatSaveConfirmation(result save.Result) string {
 		builder.WriteString(escapeHTML(result.Translation))
 	}
 
-	builder.WriteString("\n\n<tg-spoiler>")
-	builder.WriteString("<b>Saved to Google Sheets</b>")
 	if result.RowNumber > 0 {
-		builder.WriteString("\nRow: ")
+		builder.WriteString("\n\n<tg-spoiler>Row: ")
 		builder.WriteString(fmt.Sprintf("%d", result.RowNumber))
+		builder.WriteString("</tg-spoiler>")
 	}
-	builder.WriteString("\n\nIt will be imported into local storage on the next scheduled sync. An admin can run /sync in private chat to import it immediately.")
-	builder.WriteString("</tg-spoiler>")
 
 	return builder.String()
 }

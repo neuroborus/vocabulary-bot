@@ -681,9 +681,9 @@ Does not run sync or change runtime settings.
 
 ### `/info`
 
-Shows the current health snapshot plus the full command reference.
+Shows the current health snapshot, configured schedule, and the full command reference.
 
-Useful when you want status and help in one message.
+Useful when you want status, schedule, and help in one message.
 
 ### `/sync`
 
