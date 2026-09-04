@@ -574,7 +574,7 @@ Hard:
 - edit the push card in place, remove buttons, and append the chosen result.
 ```
 
-Button presses should be accepted only from `TELEGRAM_ADMIN_ID`.
+Button presses should be accepted only from `TELEGRAM_ADMIN_ID`. Other users see a popup alert that they are not authorized to vote; the card is left unchanged.
 
 ---
 

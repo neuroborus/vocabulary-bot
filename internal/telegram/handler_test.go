@@ -703,6 +703,9 @@ func TestCommandHandlerReviewCallbackEasy(t *testing.T) {
 	if notifier.callbackResponses[0].text != "" {
 		t.Fatalf("callback answer = %q, want empty toast", notifier.callbackResponses[0].text)
 	}
+	if notifier.callbackResponses[0].showAlert {
+		t.Fatal("successful callback should not show an alert")
+	}
 
 	items, err := repository.List(ctx)
 	if err != nil {
@@ -713,6 +716,68 @@ func TestCommandHandlerReviewCallbackEasy(t *testing.T) {
 	}
 	if items[0].Review.DueAt == nil {
 		t.Fatal("DueAt was not set")
+	}
+}
+
+func TestCommandHandlerReviewCallbackRejectsNonAdmin(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repository := memory.NewVocabularyRepository()
+	now := time.Date(2026, 6, 14, 12, 0, 0, 0, time.UTC)
+	service := vocabulary.NewService(repository, func() time.Time { return now })
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:  vocabulary.SourcePocketBook,
+		RawWord: "decelerate",
+	}); err != nil {
+		t.Fatalf("seed vocabulary: %v", err)
+	}
+
+	notifier := &fakeNotifier{}
+	handler := NewCommandHandler(CommandHandlerOptions{
+		Notifier:   notifier,
+		Repository: repository,
+		AdminID:    42,
+	})
+
+	if err := handler.HandleCallbackQuery(ctx, CallbackQuery{
+		ID:   "cb-unauthorized",
+		From: User{ID: 99},
+		Message: &Message{
+			MessageID: 77,
+			Chat:      Chat{ID: 900},
+		},
+		Data: reviewCallbackData(reviewActionEasy, "decelerate"),
+	}); err != nil {
+		t.Fatalf("callback: %v", err)
+	}
+
+	if len(notifier.editedMessages) != 0 {
+		t.Fatalf("edited messages = %d, want 0", len(notifier.editedMessages))
+	}
+	if len(notifier.callbackResponses) != 1 {
+		t.Fatalf("callback responses = %d, want 1", len(notifier.callbackResponses))
+	}
+	response := notifier.callbackResponses[0]
+	if response.id != "cb-unauthorized" {
+		t.Fatalf("callback id = %q, want cb-unauthorized", response.id)
+	}
+	if response.text != "You are not authorized to vote." {
+		t.Fatalf("callback answer = %q, want unauthorized alert", response.text)
+	}
+	if !response.showAlert {
+		t.Fatal("unauthorized callback should show an alert")
+	}
+
+	items, err := repository.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if items[0].Review.EasyCount != 0 {
+		t.Fatalf("EasyCount = %d, want 0", items[0].Review.EasyCount)
+	}
+	if items[0].Review.DueAt != nil {
+		t.Fatalf("DueAt = %v, want nil", items[0].Review.DueAt)
 	}
 }
 
@@ -957,8 +1022,9 @@ type fakeEditedMessage struct {
 }
 
 type fakeCallbackResponse struct {
-	id   string
-	text string
+	id        string
+	text      string
+	showAlert bool
 }
 
 type fakeDocument struct {
@@ -1000,13 +1066,22 @@ func (n *fakeNotifier) EditHTMLMessage(ctx context.Context, chatID int64, messag
 }
 
 func (n *fakeNotifier) AnswerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error {
+	return n.recordCallback(ctx, callbackQueryID, text, false)
+}
+
+func (n *fakeNotifier) AnswerCallbackAlert(ctx context.Context, callbackQueryID string, text string) error {
+	return n.recordCallback(ctx, callbackQueryID, text, true)
+}
+
+func (n *fakeNotifier) recordCallback(ctx context.Context, callbackQueryID string, text string, showAlert bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
 	n.callbackResponses = append(n.callbackResponses, fakeCallbackResponse{
-		id:   callbackQueryID,
-		text: text,
+		id:        callbackQueryID,
+		text:      text,
+		showAlert: showAlert,
 	})
 	return nil
 }
