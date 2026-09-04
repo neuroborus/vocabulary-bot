@@ -160,12 +160,20 @@ func (c *Client) editMessage(ctx context.Context, chatID int64, messageID int, t
 }
 
 func (c *Client) AnswerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error {
+	return c.answerCallbackQuery(ctx, callbackQueryID, text, false)
+}
+
+func (c *Client) AnswerCallbackAlert(ctx context.Context, callbackQueryID string, text string) error {
+	return c.answerCallbackQuery(ctx, callbackQueryID, text, true)
+}
+
+func (c *Client) answerCallbackQuery(ctx context.Context, callbackQueryID string, text string, showAlert bool) error {
 	values := url.Values{}
 	values.Set("callback_query_id", callbackQueryID)
 	if text != "" {
 		values.Set("text", text)
 	}
-	values.Set("show_alert", "false")
+	values.Set("show_alert", strconv.FormatBool(showAlert))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.methodURL("answerCallbackQuery"), strings.NewReader(values.Encode()))
 	if err != nil {

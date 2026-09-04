@@ -151,6 +151,41 @@ func TestClientHTTPErrorWithoutJSONBody(t *testing.T) {
 	}
 }
 
+func TestClientAnswerCallbackAlert(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/botfake-token/answerCallbackQuery" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.Form.Get("callback_query_id") != "cb-1" {
+			t.Fatalf("callback_query_id = %q, want cb-1", r.Form.Get("callback_query_id"))
+		}
+		if r.Form.Get("text") != "not authorized" {
+			t.Fatalf("text = %q, want not authorized", r.Form.Get("text"))
+		}
+		if r.Form.Get("show_alert") != "true" {
+			t.Fatalf("show_alert = %q, want true", r.Form.Get("show_alert"))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"result":true}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientOptions{
+		BotToken: "fake-token",
+		BaseURL:  server.URL,
+	})
+	if err := client.AnswerCallbackAlert(context.Background(), "cb-1", "not authorized"); err != nil {
+		t.Fatalf("AnswerCallbackAlert() error = %v", err)
+	}
+}
+
 func TestClientSendMessageWithoutParseMode(t *testing.T) {
 	t.Parallel()
 

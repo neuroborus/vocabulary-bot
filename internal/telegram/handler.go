@@ -230,7 +230,7 @@ func (h *CommandHandler) HandleCallbackQuery(ctx context.Context, query Callback
 			"telegram callback rejected",
 			slog.Int64("from_user_id", query.From.ID),
 		)
-		return nil
+		return h.notifier.AnswerCallbackAlert(ctx, query.ID, "You are not authorized to vote.")
 	}
 
 	action, token, ok := parseReviewCallback(query.Data)

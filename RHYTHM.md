@@ -2,6 +2,10 @@
 
 Chronological log of meaningful repo decisions. **Newest sections first:** add each new `## YYYY-MM-DD` block right below this paragraph, not at the end of the file.
 
+## 2026-09-03
+
+- Non-admin Easy/Hard presses now get `answerCallbackQuery` with `show_alert=true` ("You are not authorized to vote.") instead of a silent ignore that left the Telegram client spinner hanging.
+
 ## 2026-07-18
 
 - `/save` confirmation keeps word/context/translation visible and blurs only `Row: N` in a spoiler; sheet status and sync-import guidance were removed from the reply.
