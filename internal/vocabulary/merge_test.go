@@ -189,6 +189,72 @@ func TestMergeDraftKeepsTrailingWordsInDisplayWord(t *testing.T) {
 	}
 }
 
+func TestMergeDraftKeepsPhrasesSharingOnlyFunctionWordSeparate(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 9, 8, 8, 0, 0, 0, time.UTC)
+	repository := memory.NewVocabularyRepository()
+	service := vocabulary.NewService(repository, func() time.Time { return now })
+
+	phrases := []struct {
+		word        string
+		translation string
+		row         int
+	}{
+		{"fit the bill", "подходить под описание", 2},
+		{"In the beginning", "вначале", 3},
+		{"At the end", "в конце", 4},
+		{"learn the ropes", "освоить основы", 5},
+		{"get the sack", "уволиться", 6},
+	}
+
+	for _, phrase := range phrases {
+		outcome, err := service.MergeDraft(context.Background(), vocabulary.Draft{
+			Source:       vocabulary.SourceGoogleSheet,
+			RawWord:      phrase.word,
+			Translations: []string{phrase.translation},
+			Anchor: vocabulary.SourceAnchor{
+				Source:    vocabulary.SourceGoogleSheet,
+				RowNumber: phrase.row,
+				SheetName: "Vocabulary",
+			},
+		})
+		if err != nil {
+			t.Fatalf("merge %q: %v", phrase.word, err)
+		}
+		if !outcome.Created {
+			t.Fatalf("merge %q should create a separate item, outcome = %+v", phrase.word, outcome)
+		}
+	}
+
+	items, err := repository.List(context.Background())
+	if err != nil {
+		t.Fatalf("list items: %v", err)
+	}
+	if len(items) != len(phrases) {
+		t.Fatalf("items = %d, want %d (phrases must not collapse on the shared %q key)", len(items), len(phrases), "the")
+	}
+
+	// Re-syncing an unchanged row must not raise a false ambiguity even though
+	// every item still stores the weak "the" candidate key.
+	resync, err := service.MergeDraft(context.Background(), vocabulary.Draft{
+		Source:       vocabulary.SourceGoogleSheet,
+		RawWord:      "fit the bill",
+		Translations: []string{"подходить под описание"},
+		Anchor: vocabulary.SourceAnchor{
+			Source:    vocabulary.SourceGoogleSheet,
+			RowNumber: 2,
+			SheetName: "Vocabulary",
+		},
+	})
+	if err != nil {
+		t.Fatalf("resync fit the bill: %v", err)
+	}
+	if resync.Ambiguous {
+		t.Fatalf("resync must not be ambiguous, outcome = %+v", resync)
+	}
+}
+
 func contains(values []string, needle string) bool {
 	for _, value := range values {
 		if value == needle {

@@ -26,7 +26,26 @@ func CompactKey(value string) string {
 	}, normalized)
 }
 
+// BuildLookupKeys returns every key by which a form can be discovered. It is
+// StrongLookupKeys plus the lone interior token of a three-token phrase (for
+// example "the" in "fit the bill"): that fragment widens candidate discovery
+// but is deliberately excluded from StrongLookupKeys because merging on it alone
+// would collapse unrelated phrases.
 func BuildLookupKeys(value string) []string {
+	keys := StrongLookupKeys(value)
+
+	if tokens := Tokenize(value); len(tokens) == 3 {
+		keys = appendLookupKey(keys, CompactKey(tokens[1]))
+	}
+
+	return keys
+}
+
+// StrongLookupKeys returns the keys that may trigger an auto-merge on their own:
+// the full compact key, multi-token edge-stripped variants, and the longer edge
+// token of a two-token phrase. A single interior token of a longer phrase is too
+// collision-prone to merge on and is left out.
+func StrongLookupKeys(value string) []string {
 	tokens := Tokenize(value)
 	if len(tokens) == 0 {
 		return nil
@@ -43,7 +62,10 @@ func BuildLookupKeys(value string) []string {
 	if len(tokens) > 2 {
 		keys = appendLookupKey(keys, CompactKey(strings.Join(tokens[1:], " ")))
 		keys = appendLookupKey(keys, CompactKey(strings.Join(tokens[:len(tokens)-1], " ")))
-		keys = appendLookupKey(keys, CompactKey(strings.Join(tokens[1:len(tokens)-1], " ")))
+		// Interior variant only when it still spans two or more tokens.
+		if len(tokens) > 3 {
+			keys = appendLookupKey(keys, CompactKey(strings.Join(tokens[1:len(tokens)-1], " ")))
+		}
 	}
 
 	return keys

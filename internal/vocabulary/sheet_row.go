@@ -25,6 +25,8 @@ func (s *Service) applySheetRowUpdate(ctx context.Context, item Item, draft Draf
 		return Item{}, MergeOutcome{}, fmt.Errorf("find vocabulary item: %w", err)
 	}
 
+	matches = filterStrongMatches(matches, draft.RawWord)
+
 	otherItems := make([]Item, 0, len(matches))
 	for _, match := range matches {
 		if match.NormalizedKey == item.NormalizedKey {

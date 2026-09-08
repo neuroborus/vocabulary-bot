@@ -314,10 +314,25 @@ For every incoming word:
 
 ```text
 1. Build lookup keys from the incoming visible form.
-2. Find an existing VocabularyItem where any incoming lookup key is already present in item.lookupKeys.
-3. If exactly one item is found, merge into it.
-4. If no item is found, create a new item.
-5. If multiple items are found, do not auto-merge. Log an ambiguity and report it in /health or /logs.
+2. Find candidate VocabularyItems where any incoming lookup key is already present in item.lookupKeys.
+3. Keep only candidates that share a strong lookup key (see below); a match on a
+   weak fragment alone is treated as no match.
+4. If exactly one strong-key candidate is found, merge into it.
+5. If no strong-key candidate is found, create a new item.
+6. If multiple strong-key candidates are found, do not auto-merge. Log an ambiguity and report it in /health or /logs.
+```
+
+Strong vs weak lookup keys:
+
+```text
+- All lookup keys are still generated and stored (including the lone interior
+  fragment of a three-token phrase, e.g. "the" from "fit the bill"). They are
+  used to surface candidates cheaply.
+- A merge, however, only fires on a strong key: the full compact key, a
+  multi-token edge-stripped key, or the longer edge token of a two-token phrase.
+- The lone interior single token of a three-token phrase is weak. Without this
+  rule, unrelated idioms shaped like "X the Y" all share the key "the" and
+  collapse into one corrupt entity.
 ```
 
 When creating a new item:

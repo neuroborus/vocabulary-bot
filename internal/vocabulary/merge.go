@@ -49,6 +49,11 @@ func (s *Service) MergeDraft(ctx context.Context, draft Draft) (MergeOutcome, er
 		return MergeOutcome{}, fmt.Errorf("find vocabulary item: %w", err)
 	}
 
+	// Only merge into items that share a strong key; a lone weak fragment such
+	// as "the" surfaces candidates but must not, by itself, merge unrelated
+	// phrases into one entity.
+	matches = filterStrongMatches(matches, draft.RawWord)
+
 	if len(matches) > 1 {
 		return MergeOutcome{
 			LookupKeys: lookupKeys,
@@ -392,6 +397,43 @@ func mergeStringsByKey(existing []string, incoming []string, key func(string) st
 	}
 
 	return result
+}
+
+// filterStrongMatches keeps only the items that overlap the draft word on a
+// strong lookup key (see StrongLookupKeys). Weak-only overlaps are treated as
+// non-matches so unrelated phrases sharing a fragment like "the" stay separate.
+func filterStrongMatches(items []Item, rawWord string) []Item {
+	strong := StrongLookupKeys(rawWord)
+	if len(strong) == 0 {
+		return nil
+	}
+
+	strongSet := make(map[string]struct{}, len(strong))
+	for _, key := range strong {
+		strongSet[key] = struct{}{}
+	}
+
+	result := make([]Item, 0, len(items))
+	for _, item := range items {
+		if itemHasStrongKey(item, strongSet) {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
+func itemHasStrongKey(item Item, strongSet map[string]struct{}) bool {
+	if _, ok := strongSet[item.NormalizedKey]; ok {
+		return true
+	}
+	for _, key := range item.LookupKeys {
+		if _, ok := strongSet[key]; ok {
+			return true
+		}
+	}
+
+	return false
 }
 
 func formKey(value string) string {
