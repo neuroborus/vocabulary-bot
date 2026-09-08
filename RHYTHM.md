@@ -2,6 +2,11 @@
 
 Chronological log of meaningful repo decisions. **Newest sections first:** add each new `## YYYY-MM-DD` block right below this paragraph, not at the end of the file.
 
+## 2026-09-08
+
+- Fixed vocabulary collapse where unrelated three-token idioms shaped like `X the Y` merged into one entity through the shared interior lookup key `the`. `BuildLookupKeys` still emits that fragment for candidate discovery, but auto-merge now requires a shared `StrongLookupKeys` entry (full key, multi-token edge-stripped key, or the longer edge token of a two-token phrase); a lone interior single token is weak. The strong filter is applied in both `MergeDraft` and the sheet-row reassignment path, which also prevents a false `ErrAmbiguousMatch` on resync now that every `*the*` item stores the weak key. `DEVELOPMENT_PLAN.md` §5 documents strong vs weak keys.
+- Added `cmd/vocabulary-doctor`, a read-only auditor that clusters each item's forms by strong-key connectivity (`vocabulary.ClusterItemForms` / `IsCollapsed`) and reports items whose forms fall into more than one cluster, including the per-cluster forms/keys and source anchors. Exit codes: `0` clean, `1` collapsed items found, `2` execution error; `-json` emits machine-readable output. It only surfaces findings; repairs are left to the agent/operator acting on the report, so the tool never rewrites data.
+
 ## 2026-09-03
 
 - Non-admin Easy/Hard presses now get `answerCallbackQuery` with `show_alert=true` ("You are not authorized to vote.") instead of a silent ignore that left the Telegram client spinner hanging.

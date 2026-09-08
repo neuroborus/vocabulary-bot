@@ -124,6 +124,13 @@ When `MONGODB_URI` is set:
 
 Without MongoDB, vocabulary stays in memory and PocketBook session falls back to a file store.
 
+Audit stored data for collapsed items (unrelated phrases merged into one entity) with a read-only checker. It reports each collapsed item and how its forms cluster so an agent or operator can repair it; it never rewrites data. Exits `1` when problems are found, `2` on error:
+
+```bash
+go run ./cmd/vocabulary-doctor          # human-readable report
+go run ./cmd/vocabulary-doctor -json    # machine-readable report
+```
+
 ## Deploy
 
 Production deploy uses a small Alpine Docker image (~43 MB) and GitHub Actions over SSH. Runtime `.env` is rendered from GitHub secrets and variables on each deploy.
