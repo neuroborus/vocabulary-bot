@@ -6,6 +6,8 @@ bin/
 tmp/
 coverage.out
 
+LOCAL_ARTIFACTS/
+
 logs/*.log
 logs/archive/*.log
 
