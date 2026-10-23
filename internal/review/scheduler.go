@@ -13,7 +13,6 @@ func MarkPushed(item *vocabulary.Item, now time.Time) {
 }
 
 func MarkEasy(item *vocabulary.Item, now time.Time) {
-	MarkPushed(item, now)
 	item.Review.EasyCount++
 	if item.Review.IntervalDays <= 0 {
 		item.Review.IntervalDays = 1
@@ -25,7 +24,6 @@ func MarkEasy(item *vocabulary.Item, now time.Time) {
 }
 
 func MarkHard(item *vocabulary.Item, now time.Time) {
-	MarkPushed(item, now)
 	item.Review.HardCount++
 	item.Review.IntervalDays = 1
 

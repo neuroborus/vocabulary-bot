@@ -1,6 +1,9 @@
 package vocabulary
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestPartitionUsageExamplesMovesDictionaryUsageLineToContexts(t *testing.T) {
 	t.Parallel()
@@ -50,5 +53,77 @@ func TestIsUsageExampleLineRequiresCyrillicTranslation(t *testing.T) {
 	}
 	if IsUsageExampleLine("But this man - this Guild-master - was nothing so simple as a crackpot.") {
 		t.Fatal("English book sentence with dashes should not be a usage example")
+	}
+}
+
+func TestUsageExampleSeparators(t *testing.T) {
+	t.Parallel()
+
+	for _, separator := range []string{" - ", " – ", " — "} {
+		t.Run(separator, func(t *testing.T) {
+			line := "to lean on a friend's advice" + separator + "полагаться на совет друга"
+			if !IsUsageExampleLine(line) {
+				t.Fatalf("usage example not recognized: %q", line)
+			}
+			want := "to lean on a friend's advice — полагаться на совет друга"
+			if got := FormatUsageExampleLine(line); got != want {
+				t.Fatalf("FormatUsageExampleLine() = %q, want %q", got, want)
+			}
+			translations, contexts := PartitionUsageExamples([]string{"полагаться", line, want})
+			if !reflect.DeepEqual(translations, []string{"полагаться"}) || !reflect.DeepEqual(contexts, []string{want}) {
+				t.Fatalf("partition = %#v, %#v; want translation and one normalized example", translations, contexts)
+			}
+			if HasBookLikeContext([]string{line}) {
+				t.Fatal("bilingual example must not suppress book-context enrichment")
+			}
+
+			dialogue := "But this man" + separator + "this Guild-master" + separator + "was nothing so simple as a crackpot."
+			if IsUsageExampleLine(dialogue) || FormatUsageExampleLine(dialogue) != dialogue || !HasBookLikeContext([]string{dialogue}) {
+				t.Fatalf("ordinary English dash sentence misclassified or rewritten: %q", dialogue)
+			}
+			if !HasBookLikeContext([]string{line, dialogue}) {
+				t.Fatal("a real book sentence alongside an example must still be detected")
+			}
+		})
+	}
+}
+
+func TestSplitUsageExamplePreservesDashesWithinBothLanguages(t *testing.T) {
+	t.Parallel()
+
+	line := "He leaned on it — carefully — он опёрся — осторожно"
+	example, translation, ok := SplitUsageExampleLine(line)
+	if !ok || example != "He leaned on it — carefully" || translation != "он опёрся — осторожно" {
+		t.Fatalf("SplitUsageExampleLine() = %q, %q, %v", example, translation, ok)
+	}
+}
+
+func TestShortBilingualLinesSeparatePresentationFromStorage(t *testing.T) {
+	t.Parallel()
+
+	for _, separator := range []string{" - ", " – ", " — "} {
+		for _, pair := range []struct {
+			example     string
+			translation string
+		}{
+			{"I agree", "Я согласен"},
+			{"Hello", "Привет"},
+		} {
+			line := pair.example + separator + pair.translation
+			example, translation, ok := SplitUsageExampleLine(line)
+			if !ok || example != pair.example || translation != pair.translation {
+				t.Fatalf("SplitUsageExampleLine(%q) = %q, %q, %v", line, example, translation, ok)
+			}
+			if IsUsageExampleLine(line) {
+				t.Fatalf("short line must retain conservative storage classification: %q", line)
+			}
+			translations, contexts := PartitionUsageExamples([]string{line})
+			if !reflect.DeepEqual(translations, []string{line}) || len(contexts) != 0 {
+				t.Fatalf("storage partition changed for %q: %#v, %#v", line, translations, contexts)
+			}
+		}
+	}
+	if _, _, ok := SplitUsageExampleLine("I agree — you win"); ok {
+		t.Fatal("ordinary English dash dialogue must not be split as bilingual")
 	}
 }

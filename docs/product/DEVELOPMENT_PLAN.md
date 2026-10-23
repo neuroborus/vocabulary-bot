@@ -119,7 +119,9 @@ type SourceAnchor = {
 type ReviewState = {
   enabled: boolean;
   lastPushedAt?: Date;
-  nextPushAt?: Date;
+  dueAt?: Date;
+  intervalDays: number;
+  pushCount: number;
   easyCount: number;
   hardCount: number;
 };
@@ -569,6 +571,10 @@ Contexts:
 Necromancer — Fred Saberhagen
 ```
 
+Translations are hidden behind spoilers by default. For an explicit bilingual dictionary example such as `to lean on a friend's advice — полагаться на совет друга`, Context keeps the English visible and wraps only the translated suffix in a spoiler. Presentation recognizes explicit English/Cyrillic pairs without a minimum word count, including `I agree — Я согласен`, using spaced hyphens, en dashes, and normalized em dashes. This covers legacy examples still in `translations[]` and examples already in `contexts[]`; storage classification retains its conservative three-token heuristic. Ordinary English dialogue with dashes stays visible. Both parts are HTML-escaped; disabling spoilers retains the complete example.
+
+This is presentation of a translation supplied within one line, without inferring pairs between the independent arrays or rewriting stored vocabulary. Normalized bilingual examples do not count as book sentences and therefore do not suppress real book-context enrichment.
+
 Suggested buttons:
 
 ```text
@@ -590,6 +596,8 @@ Hard:
 ```
 
 Button presses should be accepted only from `TELEGRAM_ADMIN_ID`. Other users see a popup alert that they are not authorized to vote; the card is left unchanged.
+
+Easy doubles the current interval, starting with two days; Hard resets it to one day. `dueAt` is calculated from the rating time. Only a successful card delivery increments `pushCount` and sets `lastPushedAt`; a rating changes the corresponding Easy/Hard count, interval, and due date without recounting delivery or replacing its timestamp.
 
 ---
 
@@ -729,11 +737,17 @@ Sends one due word manually without waiting for the scheduled timer.
 Behavior:
 
 ```text
-1. Pick the next due word.
-2. If no words are due, optionally pick the oldest enabled word.
+1. Use weighted randomness to pick an eligible word (same rules as scheduled pushes).
+2. If the eligible pool is empty, report that no review words are available.
 3. Send a normal reminder message with buttons.
-4. Update lastPushedAt.
+4. After successful delivery, update lastPushedAt and increment pushCount exactly once.
 ```
+
+Eligibility requires both the item and review to be enabled, `dueAt` to be unset or at/before the current time, and `lastPushedAt` to be unset or at least 24 hours old. Both exact boundaries are eligible. Future-due words and words inside the delivery cooldown are strictly excluded, even if every word is excluded.
+
+Selection remains weighted random. Genuinely never-shown words receive a fixed **10×** multiplier, a substantial bounded bias that keeps reviewed due words selectable without an all-new-first queue or deterministic alternation. The bonus requires no delivery timestamp, a zero push count, zero Easy/Hard counts, and no due date, so partial historical delivery or rating records are not misclassified as unseen.
+
+The base difficulty weight is `max(1, 1 + hardCount - easyCount)`, then scaled by the configured document/book source factor. Clamping before scaling preserves the configured source ratio for mastered words while harder words retain higher weights. Due words keep an overdue multiplier of `1 + min(overdueDays × 0.5, 2)`. Source classification and factors are unchanged; the unseen bonus multiplies the resulting weight and needs no new configuration.
 
 ---
 
