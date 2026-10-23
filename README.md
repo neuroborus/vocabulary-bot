@@ -80,12 +80,18 @@ Only `TELEGRAM_ADMIN_ID` may run admin commands. `/save` is accepted from any us
 
 `/save` structures the message with OpenAI and appends one row to Google Sheets only. Use it as a reply to the message you want to save, or write the text before or after `/save`. The new row is imported into local storage by the normal `/sync` path.
 
-Push cards show source at the bottom (`Title — Author` for books, sheet name or `Document` for spreadsheet/PDF words), hide translations behind a spoiler by default, and update in place after Easy/Hard is chosen.
+Push cards show source at the bottom (`Title — Author` for books, sheet name or `Document` for spreadsheet/PDF words), hide translations behind a spoiler by default, and update in place after Easy/Hard is chosen. Explicit English/Cyrillic dictionary examples such as `to lean on a friend's advice — полагаться на совет друга` keep the English visible in Context and hide the translated suffix. This also covers legacy examples in `translations` and spaced hyphens or en dashes. Disabling translation spoilers shows the complete example. Stored text and independent translation/context arrays are preserved.
+
+Manual and automatic pushes select randomly among enabled words whose `DueAt` has arrived (or is unset) and whose last successful delivery was at least 24 hours ago (or is unset). There is no fallback to future-due or recently delivered words when the eligible pool is empty. Easy doubles the interval (initially two days); Hard resets it to one day, measured from the rating time. Ratings preserve the actual delivery timestamp and count.
+
+Genuinely never-shown words receive a fixed 10× selection-weight bonus relative to otherwise equal reviewed words. Either `LastPushedAt` or `PushCount`, or legacy rating/schedule state, prevents the bonus. Reviewed due words remain selectable; selection stays weighted random rather than alternating or exhausting all new words first.
 
 Priority tuning:
 
 - `REVIEW_DOCUMENT_PUSH_FACTOR` — spreadsheet-only and PDF `Document` words
 - `REVIEW_BOOK_PUSH_FACTOR` — PocketBook book anchors
+
+Difficulty is clamped to a positive baseline before these factors are applied, preserving their ratio even for mastered words. Overdue words retain a bounded weight increase.
 
 Scheduled jobs use `AUTO_SYNC_CRON`, `AUTO_PUSH_CRON`, and `AUTO_LOGS_CRON`. `/turn_off` blocks automatic sync and `/sync` until `/turn_on` is used again.
 

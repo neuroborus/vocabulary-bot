@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -136,7 +137,7 @@ func TestFormatReviewReminderDictionaryEntry(t *testing.T) {
 		"<b>Adjective</b>",
 		"постный (о мясе)",
 		"<b>Context</b>",
-		"to lean on a friend's advice — полагаться на совет друга",
+		"to lean on a friend's advice — <tg-spoiler>полагаться на совет друга</tg-spoiler>",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("reminder missing %q:\n%s", want, text)
@@ -151,6 +152,82 @@ func TestFormatReviewReminderDictionaryEntry(t *testing.T) {
 	} {
 		if strings.Contains(text, unwanted) {
 			t.Fatalf("reminder should not include %q:\n%s", unwanted, text)
+		}
+	}
+}
+
+func TestFormatReviewReminderBilingualExamples(t *testing.T) {
+	t.Parallel()
+
+	for _, source := range []string{"contexts", "legacy translations"} {
+		for _, separator := range []string{" - ", " – ", " — "} {
+			for _, pair := range []struct {
+				example     string
+				translation string
+			}{
+				{"to lean on a friend's advice", "полагаться на совет друга"},
+				{"I agree", "Я согласен"},
+				{"Hello", "Привет"},
+			} {
+				t.Run(source+separator+pair.example, func(t *testing.T) {
+					line := pair.example + separator + pair.translation
+					item := vocabulary.Item{DisplayWord: "lean"}
+					if source == "contexts" {
+						item.Contexts = []string{line}
+					} else {
+						item.Translations = []string{line}
+					}
+					beforeTranslations := append([]string(nil), item.Translations...)
+					beforeContexts := append([]string(nil), item.Contexts...)
+					text := formatReviewReminder(item, true)
+					want := "<b>lean</b>\n\n<b>Context</b>\n• " + pair.example + " — <tg-spoiler>" + pair.translation + "</tg-spoiler>"
+					if text != want {
+						t.Fatalf("reminder = %q, want %q", text, want)
+					}
+					plain := formatReviewReminder(item, false)
+					visibleLine := line
+					if source == "legacy translations" {
+						visibleLine = pair.example + " — " + pair.translation
+					}
+					wantPlain := "<b>lean</b>\n\n<b>Context</b>\n• " + visibleLine
+					if plain != wantPlain {
+						t.Fatalf("reminder without spoilers = %q, want complete text %q", plain, wantPlain)
+					}
+					if !reflect.DeepEqual(item.Translations, beforeTranslations) || !reflect.DeepEqual(item.Contexts, beforeContexts) {
+						t.Fatal("formatting mutated stored vocabulary")
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestFormatReviewReminderEscapesBothExampleParts(t *testing.T) {
+	t.Parallel()
+
+	text := formatReviewReminder(vocabulary.Item{
+		DisplayWord: "lean",
+		Contexts:    []string{`to lean on <advice> & help — <совет> & помощь`},
+	}, true)
+	want := "to lean on &lt;advice&gt; &amp; help — <tg-spoiler>&lt;совет&gt; &amp; помощь</tg-spoiler>"
+	if !strings.Contains(text, want) {
+		t.Fatalf("reminder = %q, want escaped example %q", text, want)
+	}
+}
+
+func TestFormatReviewReminderPreservesEnglishDialogueAndIndependentTranslations(t *testing.T) {
+	t.Parallel()
+
+	for _, separator := range []string{" - ", " – ", " — "} {
+		dialogue := "But this man" + separator + "this Guild-master" + separator + "was nothing so simple as a crackpot."
+		text := formatReviewReminder(vocabulary.Item{
+			DisplayWord:  "crackpot",
+			Contexts:     []string{dialogue},
+			Translations: []string{"чудак"},
+		}, true)
+		want := "<b>Context</b>\n• " + dialogue + "\n\n<tg-spoiler><b>Translation</b>\n• чудак</tg-spoiler>"
+		if !strings.Contains(text, want) {
+			t.Fatalf("dialogue must remain visible and independent from translations: %q", text)
 		}
 	}
 }

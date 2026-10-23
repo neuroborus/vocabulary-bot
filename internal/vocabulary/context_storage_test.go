@@ -111,3 +111,26 @@ func TestServiceHasStoredBookLikeContextDetectsDashSentence(t *testing.T) {
 		t.Fatal("HasStoredBookLikeContext() = false, want true for dash sentence")
 	}
 }
+
+func TestServiceHasStoredBookLikeContextIgnoresNormalizedExample(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repository := memory.NewVocabularyRepository()
+	now := time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
+	service := vocabulary.NewService(repository, func() time.Time { return now })
+	if _, err := service.MergeDraft(ctx, vocabulary.Draft{
+		Source:       vocabulary.SourcePocketBook,
+		RawWord:      "lean",
+		Translations: []string{"to lean on a friend's advice - полагаться на совет друга"},
+	}); err != nil {
+		t.Fatalf("merge draft: %v", err)
+	}
+	has, err := service.HasStoredBookLikeContext(ctx, "lean")
+	if err != nil {
+		t.Fatalf("HasStoredBookLikeContext() error = %v", err)
+	}
+	if has {
+		t.Fatal("normalized dictionary example must allow context enrichment")
+	}
+}

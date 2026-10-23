@@ -551,6 +551,9 @@ func TestCommandHandlerPushSendsReviewWordToReviewChat(t *testing.T) {
 	if items[0].Review.LastPushedAt == nil {
 		t.Fatal("LastPushedAt was not updated")
 	}
+	if items[0].Review.PushCount != 1 {
+		t.Fatalf("PushCount = %d, want 1 successful delivery", items[0].Review.PushCount)
+	}
 }
 
 func TestCommandHandlerPushDoesNotMarkPushedWhenDeliveryFails(t *testing.T) {
@@ -716,6 +719,84 @@ func TestCommandHandlerReviewCallbackEasy(t *testing.T) {
 	}
 	if items[0].Review.DueAt == nil {
 		t.Fatal("DueAt was not set")
+	}
+}
+
+func TestCommandHandlerRatingsPreserveDeliveryAndHonorDueDate(t *testing.T) {
+	t.Parallel()
+
+	for _, action := range []string{reviewActionEasy, reviewActionHard} {
+		t.Run(action, func(t *testing.T) {
+			ctx := context.Background()
+			repository := memory.NewVocabularyRepository()
+			pushedAt := time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
+			now := pushedAt
+			if err := repository.Create(ctx, vocabulary.Item{
+				NormalizedKey: "lean",
+				DisplayWord:   "lean",
+				Enabled:       true,
+				Review:        vocabulary.ReviewState{Enabled: true},
+			}); err != nil {
+				t.Fatalf("seed vocabulary: %v", err)
+			}
+			notifier := &fakeNotifier{}
+			handler := NewCommandHandler(CommandHandlerOptions{
+				Notifier: notifier, Repository: repository, AdminID: 42,
+				Now: func() time.Time { return now },
+			})
+			push := func() {
+				t.Helper()
+				if err := handler.HandleMessage(ctx, Message{From: User{ID: 42}, Chat: Chat{ID: 42}, Text: CommandPush}); err != nil {
+					t.Fatalf("push: %v", err)
+				}
+			}
+			push()
+			push()
+			if len(notifier.messages) != 2 || notifier.messages[0].keyboard == nil || !strings.Contains(notifier.messages[1].text, "No review words available") {
+				t.Fatalf("second ungraded push should be blocked by cooldown: %+v", notifier.messages)
+			}
+			now = pushedAt.Add(6 * time.Hour)
+			if err := handler.HandleCallbackQuery(ctx, CallbackQuery{
+				ID: "rating", From: User{ID: 42},
+				Message: &Message{MessageID: 77, Chat: Chat{ID: 42}},
+				Data:    reviewCallbackData(action, "lean"),
+			}); err != nil {
+				t.Fatalf("callback: %v", err)
+			}
+			items, err := repository.List(ctx)
+			if err != nil || len(items) != 1 {
+				t.Fatalf("list: items = %d, error = %v", len(items), err)
+			}
+			state := items[0].Review
+			if state.PushCount != 1 || state.LastPushedAt == nil || !state.LastPushedAt.Equal(pushedAt) {
+				t.Fatalf("rating changed successful delivery state: %+v", state)
+			}
+			wantDays, wantEasy, wantHard := 1, 0, 1
+			if action == reviewActionEasy {
+				wantDays, wantEasy, wantHard = 2, 1, 0
+			}
+			wantDue := now.AddDate(0, 0, wantDays)
+			if state.DueAt == nil || !state.DueAt.Equal(wantDue) || state.IntervalDays != wantDays || state.EasyCount != wantEasy || state.HardCount != wantHard {
+				t.Fatalf("rating schedule = %+v, want due %v", state, wantDue)
+			}
+			if len(notifier.editedMessages) != 1 || notifier.editedMessages[0].keyboard == nil || len(notifier.editedMessages[0].keyboard.InlineKeyboard) != 0 {
+				t.Fatal("rating should edit the card and remove its buttons")
+			}
+			now = wantDue.Add(-time.Nanosecond)
+			push()
+			if !strings.Contains(notifier.messages[len(notifier.messages)-1].text, "No review words available") {
+				t.Fatal("push should not send a word before its promised due date")
+			}
+			now = wantDue
+			push()
+			items, err = repository.List(ctx)
+			if err != nil || len(items) != 1 {
+				t.Fatalf("list: items = %d, error = %v", len(items), err)
+			}
+			if items[0].Review.PushCount != 2 || items[0].Review.LastPushedAt == nil || !items[0].Review.LastPushedAt.Equal(wantDue) {
+				t.Fatalf("due delivery was not counted exactly once: %+v", items[0].Review)
+			}
+		})
 	}
 }
 

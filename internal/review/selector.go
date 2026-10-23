@@ -9,10 +9,9 @@ import (
 )
 
 const (
-	pushPriorityBaseline   = 1.0
-	notDueWeightMultiplier = 0.12
-	recentPushHourPenalty  = 0.08
-	recentPushDayPenalty   = 0.35
+	pushPriorityBaseline       = 1.0
+	neverShownWeightMultiplier = 10.0
+	pushCooldown               = 24 * time.Hour
 )
 
 func IsEligible(item vocabulary.Item) bool {
@@ -71,10 +70,10 @@ func DifficultyScore(item vocabulary.Item) int {
 	return item.Review.HardCount - item.Review.EasyCount
 }
 
-// PushPriorityScore combines difficulty with a baseline so source factors still
-// matter for never-reviewed words, then scales by the source-specific factor.
+// PushPriorityScore clamps difficulty to a positive baseline before applying
+// source factors, so those factors also apply to mastered words.
 func PushPriorityScore(item vocabulary.Item, opts SelectionOptions) float64 {
-	score := float64(DifficultyScore(item)) + pushPriorityBaseline
+	score := math.Max(float64(DifficultyScore(item))+pushPriorityBaseline, pushPriorityBaseline)
 
 	switch {
 	case vocabulary.IsDocumentPushCandidate(item):
@@ -87,28 +86,26 @@ func PushPriorityScore(item vocabulary.Item, opts SelectionOptions) float64 {
 }
 
 // SelectWeight estimates how likely a word is to be picked for /push.
-// Higher difficulty and source factors increase weight; due words are favored;
-// not-yet-due and very recently pushed words are down-weighted but not excluded.
+// Future-due words and deliveries within the last 24 hours are excluded.
+// Otherwise difficulty, source factors, overdue time, and unseen status set weight.
 func SelectWeight(item vocabulary.Item, now time.Time, opts SelectionOptions) float64 {
-	weight := PushPriorityScore(item, opts)
-	if weight <= 0 {
-		weight = pushPriorityBaseline
+	if !IsDue(item, now) {
+		return 0
+	}
+	if lastPush := item.Review.LastPushedAt; lastPush != nil && now.Sub(*lastPush) < pushCooldown {
+		return 0
 	}
 
-	weight *= scheduleWeightMultiplier(item, now)
-	weight *= recencyWeightMultiplier(item, now)
-
-	if weight < 0 {
-		return 0
+	weight := PushPriorityScore(item, opts) * scheduleWeightMultiplier(item, now)
+	if item.Review.LastPushedAt == nil && item.Review.PushCount == 0 &&
+		item.Review.EasyCount == 0 && item.Review.HardCount == 0 && item.Review.DueAt == nil {
+		weight *= neverShownWeightMultiplier
 	}
 
 	return weight
 }
 
 func scheduleWeightMultiplier(item vocabulary.Item, now time.Time) float64 {
-	if !IsDue(item, now) {
-		return notDueWeightMultiplier
-	}
 	if item.Review.DueAt == nil {
 		return 1
 	}
@@ -122,22 +119,6 @@ func scheduleWeightMultiplier(item vocabulary.Item, now time.Time) float64 {
 	return 1 + math.Min(days*0.5, 2)
 }
 
-func recencyWeightMultiplier(item vocabulary.Item, now time.Time) float64 {
-	if item.Review.LastPushedAt == nil {
-		return 1
-	}
-
-	since := now.UTC().Sub(item.Review.LastPushedAt.UTC())
-	switch {
-	case since < time.Hour:
-		return recentPushHourPenalty
-	case since < 24*time.Hour:
-		return recentPushDayPenalty
-	default:
-		return 1
-	}
-}
-
 // SelectNext picks a review word at random with probability proportional to SelectWeight.
 func SelectNext(items []vocabulary.Item, now time.Time, opts ...SelectionOptions) (vocabulary.Item, bool) {
 	options := SelectionOptions{DocumentPushFactor: 1, BookPushFactor: 1}
@@ -149,9 +130,6 @@ func SelectNext(items []vocabulary.Item, now time.Time, opts ...SelectionOptions
 	eligible := make([]vocabulary.Item, 0, len(items))
 	weights := make([]float64, 0, len(items))
 	for _, item := range items {
-		if !IsEligible(item) {
-			continue
-		}
 		weight := SelectWeight(item, now, options)
 		if weight <= 0 {
 			continue

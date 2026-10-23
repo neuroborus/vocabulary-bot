@@ -6,7 +6,7 @@ import (
 	"unicode"
 )
 
-var usageExamplePattern = regexp.MustCompile(`^(.+?)\s+-\s+(.+)$`)
+var usageExampleSeparator = regexp.MustCompile(`\s+[-–—]\s+`)
 
 // PartitionUsageExamples moves dictionary usage examples from translation lines
 // into context lines. PocketBook often stores them inside the translation block.
@@ -36,28 +36,37 @@ func NormalizeUsageExamples(item *Item) {
 	item.Contexts = mergeStringsByKey(item.Contexts, contexts, contextKey)
 }
 
+// IsUsageExampleLine conservatively classifies storage lines as dictionary
+// examples. Presentation can split shorter bilingual lines without reclassifying them.
 func IsUsageExampleLine(line string) bool {
-	match := usageExamplePattern.FindStringSubmatch(strings.TrimSpace(line))
-	if len(match) < 3 {
-		return false
-	}
-
-	left := strings.TrimSpace(match[1])
-	right := strings.TrimSpace(match[2])
-	if left == "" || right == "" {
-		return false
-	}
-
-	return containsLatinLetters(left) && len(Tokenize(left)) >= 3 && containsCyrillicLetters(right)
+	example, _, ok := SplitUsageExampleLine(line)
+	return ok && len(Tokenize(example)) >= 3
 }
 
 func FormatUsageExampleLine(line string) string {
-	match := usageExamplePattern.FindStringSubmatch(strings.TrimSpace(line))
-	if len(match) < 3 {
+	example, translation, ok := SplitUsageExampleLine(line)
+	if !ok {
 		return line
 	}
 
-	return strings.TrimSpace(match[1]) + " — " + strings.TrimSpace(match[2])
+	return example + " — " + translation
+}
+
+// SplitUsageExampleLine recognizes an English dictionary example with an explicit
+// Cyrillic translation after a spaced hyphen, en dash, or em dash.
+func SplitUsageExampleLine(line string) (example, translation string, ok bool) {
+	separators := usageExampleSeparator.FindAllStringIndex(line, -1)
+	// Work backwards to preserve dashes within the English example. A dash within
+	// the translation cannot be the boundary because its left side has Cyrillic.
+	for index := len(separators) - 1; index >= 0; index-- {
+		separator := separators[index]
+		left := strings.TrimSpace(line[:separator[0]])
+		right := strings.TrimSpace(line[separator[1]:])
+		if containsLatinLetters(left) && !containsCyrillicLetters(left) && containsCyrillicLetters(right) {
+			return left, right, true
+		}
+	}
+	return "", "", false
 }
 
 func containsLatinLetters(value string) bool {

@@ -3,7 +3,6 @@ package telegram
 import (
 	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/neuroborus/vocabulary-bot/internal/vocabulary"
 )
@@ -13,7 +12,6 @@ var (
 	posHeaderPattern           = regexp.MustCompile(`(?i)^(noun|verb|adjective|adverb|preposition|conjunction|pronoun|phrase|participle|gerund)\b(?:\s+\d+\)\s*|\s+\d+\)|\s*:\s*|\s+|$)`)
 	numberedMeaningPattern     = regexp.MustCompile(`^\d+\)\s*`)
 	qualifierPattern           = regexp.MustCompile(`(?i)^(о|по|из|на|для|с|в|при)\s+`)
-	examplePairPattern         = regexp.MustCompile(`^(.+?)\s+-\s+(.+)$`)
 )
 
 type lexiconDisplay struct {
@@ -40,7 +38,14 @@ func formatReviewReminder(item vocabulary.Item, spoilerTranslations bool) string
 		builder.WriteString("\n\n<b>Context</b>")
 		for _, contextValue := range lexicon.Contexts {
 			builder.WriteString("\n• ")
-			builder.WriteString(escapeHTML(contextValue))
+			if example, translation, ok := vocabulary.SplitUsageExampleLine(contextValue); spoilerTranslations && ok {
+				builder.WriteString(escapeHTML(example))
+				builder.WriteString(" — <tg-spoiler>")
+				builder.WriteString(escapeHTML(translation))
+				builder.WriteString("</tg-spoiler>")
+			} else {
+				builder.WriteString(escapeHTML(contextValue))
+			}
 		}
 	}
 
@@ -162,8 +167,8 @@ func parseLexiconDisplay(translations, contexts []string) lexiconDisplay {
 			continue
 		}
 
-		if isExampleLine(line) {
-			display.Contexts = appendUniqueLine(display.Contexts, formatExampleLine(line))
+		if _, _, ok := vocabulary.SplitUsageExampleLine(line); ok && !posHeaderPattern.MatchString(line) && !numberedMeaningPattern.MatchString(line) {
+			display.Contexts = appendUniqueLine(display.Contexts, vocabulary.FormatUsageExampleLine(line))
 			continue
 		}
 
@@ -238,39 +243,6 @@ func extractPartOfSpeech(line string) (string, string, bool) {
 	}
 
 	return label, remainder, true
-}
-
-func isExampleLine(line string) bool {
-	match := examplePairPattern.FindStringSubmatch(line)
-	if len(match) < 3 {
-		return false
-	}
-
-	left := strings.TrimSpace(match[1])
-	right := strings.TrimSpace(match[2])
-	if left == "" || right == "" {
-		return false
-	}
-
-	return containsLatinLetters(left) && !posHeaderPattern.MatchString(left) && !numberedMeaningPattern.MatchString(left)
-}
-
-func formatExampleLine(line string) string {
-	match := examplePairPattern.FindStringSubmatch(line)
-	if len(match) < 3 {
-		return line
-	}
-
-	return strings.TrimSpace(match[1]) + " — " + strings.TrimSpace(match[2])
-}
-
-func containsLatinLetters(value string) bool {
-	for _, r := range value {
-		if unicode.In(r, unicode.Latin) && unicode.IsLetter(r) {
-			return true
-		}
-	}
-	return false
 }
 
 func appendUniqueLine(values []string, line string) []string {
